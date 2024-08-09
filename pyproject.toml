@@ -15,6 +15,7 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
 langchain-core = ">=0.2.29"
+jupyter = "^1.0.0"
 
 [tool.poetry.group.dev]
 optional = true

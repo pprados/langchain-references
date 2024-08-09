@@ -10,7 +10,7 @@ from langchain_references import (
     MarkdownReferenceStyle,
     TextReferenceStyle,
 )
-from langchain_references.references import _manage_references
+from langchain_references.references import ReferenceStyle, _manage_references
 
 _four_documents = [
     Document(
@@ -377,4 +377,54 @@ def test_style_html() -> None:
     assert (
         _send(manage_references, None) == '\n<ol><li><a href="source2">source2</a></li>'
         '<li><a href="source1">source1</a></li></ol>'
+    )
+
+
+def test_my_style() -> None:
+    class MyReferenceStyle(ReferenceStyle):
+        source_id_key = (
+            lambda media: f'{media.metadata["source"]}#{media.metadata["row"]}'
+        )
+
+        def format_reference(self, ref: int, media: BaseMedia) -> str:
+            return f"[{media.metadata['title']}]"
+
+        def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
+            if not refs:
+                return ""
+            result = []
+            for ref, media in refs:
+                source = self.source_id_key.__func__(media)
+                result.append(f"- [{ref}] {source}\n")
+            if not result:
+                return ""
+            return "\n\n" + "".join(result)
+
+    documents: List[BaseMedia] = [
+        Document(
+            page_content="doc1",
+            id="1",
+            metadata={"source": "source1", "row": 1, "title": "title1"},
+        ),
+        Document(
+            page_content="doc2",
+            id="2",
+            metadata={"source": "source2", "row": 2, "title": "title2"},
+        ),
+    ]
+
+    # Test with title
+    manage_references = _manage_references(style=MyReferenceStyle(), medium=documents)
+    _send(manage_references, None)
+    assert (
+        _send(
+            manage_references,
+            "yes[1](id=3), maybe[2](id=2), "
+            "no[3](id=4), yes[4](id=1), error[5](id=10)",
+        )
+        == "yes"
+    )
+    assert _send(manage_references, "") == ", maybe[title2], no, yes[title1], error"
+    assert (
+        _send(manage_references, None) == "\n\n" "- [1] source2#2\n" "- [2] source1#1\n"
     )

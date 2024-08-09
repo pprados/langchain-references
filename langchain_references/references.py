@@ -60,6 +60,8 @@ def _get_source_id_assigner(
     elif isinstance(source_id_key, str):
         return lambda doc: doc.metadata[source_id_key]
     elif callable(source_id_key):
+        if source_id_key.__self__:
+            return source_id_key.__func__
         return source_id_key
     else:
         raise ValueError(
@@ -70,12 +72,8 @@ def _get_source_id_assigner(
 
 # %% Different styles of references
 class ReferenceStyle:
-    def get_source_id_key(self) -> Callable[[BaseMedia], str]:
-        """
-        Return the key to use as source identifier.
-        Must be a string or a function to extract the source identifier from a document.
-        """
-        return lambda media: media.metadata["source"]
+    source_id_key: Union[str, Callable[[BaseMedia], str], None] = "source"
+    """The metadata to identify the id of the parents """
 
     @abstractmethod
     def format_reference(self, ref: int, media: BaseMedia) -> str:
@@ -109,7 +107,7 @@ class TextReferenceStyle(ReferenceStyle):
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
         if not refs:
             return ""
-        get_source = _get_source_id_assigner(self.get_source_id_key())
+        get_source = _get_source_id_assigner(self.source_id_key)
         result = []
         for ref, media in refs:
             source = get_source(media)
@@ -129,13 +127,13 @@ class MarkdownReferenceStyle(ReferenceStyle):
     """
 
     def format_reference(self, ref: int, media: BaseMedia) -> str:
-        source = _get_source_id_assigner(self.get_source_id_key())(media)
+        source = _get_source_id_assigner(self.source_id_key)(media)
         return f"^[{ref}]({source})^"
 
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
         if not refs:
             return ""
-        get_source = _get_source_id_assigner(self.get_source_id_key())
+        get_source = _get_source_id_assigner(self.source_id_key)
         result = []
         for ref, media in refs:
             source = get_source(media)
@@ -155,11 +153,11 @@ class HTMLReferenceStyle(ReferenceStyle):
     """
 
     def format_reference(self, ref: int, media: BaseMedia) -> str:
-        source = _get_source_id_assigner(self.get_source_id_key())(media)
+        source = _get_source_id_assigner(self.source_id_key)(media)
         return f'<sup><a href="{source}">{ref}</a></sup>'
 
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
-        get_source = _get_source_id_assigner(self.get_source_id_key())
+        get_source = _get_source_id_assigner(self.source_id_key)
         if not refs:
             return ""
         result = ["\n<ol>"]
@@ -182,7 +180,7 @@ def _analyse_doc_ids(
     mediums: Sequence[BaseMedia],
 ) -> Dict[int, int]:
     # Pour chaque doc, trouve un id de doc de référence
-    source_id_key_get = _get_source_id_assigner(style.get_source_id_key())
+    source_id_key_get = _get_source_id_assigner(style.source_id_key)
     seen: Dict = dict[str, int]()
     uniq_id_for_chunk = dict[int, int]()
     gen_id = 1
@@ -281,6 +279,8 @@ def _manage_references(
                 #     token = "".join(message.content)
                 else:
                     raise ValueError(f"Invalid content type {type(message.content)}")
+            if isinstance(message, str):
+                text_fragment = message
             if wait:
                 if "[" in cast(str, text_fragment):
                     pos = text_fragment.find("[")
