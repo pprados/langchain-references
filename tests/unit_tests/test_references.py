@@ -291,7 +291,7 @@ def test_style_markdown() -> None:
     )
     assert (
         _send(manage_references, "")
-        == ", maybe<sup>[1](source2)</sup>, no, yes<sup>[2](source1)</sup>, error"
+        == ", maybe<sup>[[1](source2)]</sup>, no, yes<sup>[[2](source1)]</sup>, error"
     )
     assert (
         _send(manage_references, None) == "\n\n"
@@ -313,7 +313,7 @@ def test_style_markdown() -> None:
     )
     assert (
         _send(manage_references, "")
-        == ", maybe<sup>[1](source2)</sup>, no, yes<sup>[2](source1)</sup>, error"
+        == ", maybe<sup>[[1](source2)]</sup>, no, yes<sup>[[2](source1)]</sup>, error"
     )
     assert (
         _send(manage_references, None) == "\n\n"
@@ -381,10 +381,11 @@ def test_style_html() -> None:
 
 
 def test_my_style() -> None:
+    def my_source(media: BaseMedia) -> str:
+        return f'{media.metadata["source"]}#{media.metadata["row"]}'
+
     class MyReferenceStyle(ReferenceStyle):
-        source_id_key = (
-            lambda media: f'{media.metadata["source"]}#{media.metadata["row"]}'
-        )
+        source_id_key = my_source
 
         def format_reference(self, ref: int, media: BaseMedia) -> str:
             return f"[{media.metadata['title']}]"
@@ -394,7 +395,7 @@ def test_my_style() -> None:
                 return ""
             result = []
             for ref, media in refs:
-                source = self.source_id_key.__func__(media)
+                source = self.source_id_key.__func__(media)  # type: ignore
                 result.append(f"- [{ref}] {source}\n")
             if not result:
                 return ""

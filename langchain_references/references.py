@@ -55,13 +55,11 @@ def _get_source_id_assigner(
     source_id_key: str | Callable[[BaseMedia], str],
 ) -> Callable[[BaseMedia], Union[str, None]]:
     """Get the source id from the document."""
-    if source_id_key is None:
-        return lambda doc: None
-    elif isinstance(source_id_key, str):
+    if isinstance(source_id_key, str):
         return lambda doc: doc.metadata[source_id_key]
     elif callable(source_id_key):
-        if source_id_key.__self__:
-            return source_id_key.__func__
+        if source_id_key.__self__:  # type: ignore
+            return source_id_key.__func__  # type: ignore
         return source_id_key
     else:
         raise ValueError(
@@ -72,7 +70,7 @@ def _get_source_id_assigner(
 
 # %% Different styles of references
 class ReferenceStyle:
-    source_id_key: Union[str, Callable[[BaseMedia], str], None] = "source"
+    source_id_key: Union[str, Callable[[BaseMedia], str]] = "source"
     """The metadata to identify the id of the parents """
 
     @abstractmethod

@@ -237,7 +237,7 @@ like science and engineering <sup>[[1](https://en.wikipedia.org/wiki/Mathematics
 ---
 
 ## Style
-Differentes styles can be used to display the references. The default style is:
+Different styles can be used to display the references. The default style is:
 Markdown, but you can use:
 - `EmptyReferenceStyle` : no references are produce
 - `TextReferenceStyle` : for console output
