@@ -10,7 +10,7 @@ It's a very difficult goal to achieve.
 
 **Now that's not a problem!**
 
-[Try the notebook](langchain_reference.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pprados/langchain-references/blob/master/langchain_reference.ipynb)
 
 ## Introduction
 When publishing the LLM's response, it can be helpful to include links to the documents 
