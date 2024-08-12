@@ -291,7 +291,7 @@ def test_style_markdown() -> None:
     )
     assert (
         _send(manage_references, "")
-        == ", maybe^[1](source2)^, no, yes^[2](source1)^, error"
+        == ", maybe<sup>[1](source2)</sup>, no, yes<sup>[2](source1)</sup>, error"
     )
     assert (
         _send(manage_references, None) == "\n\n"
@@ -313,7 +313,7 @@ def test_style_markdown() -> None:
     )
     assert (
         _send(manage_references, "")
-        == ", maybe^[1](source2)^, no, yes^[2](source1)^, error"
+        == ", maybe<sup>[1](source2)</sup>, no, yes<sup>[2](source1)</sup>, error"
     )
     assert (
         _send(manage_references, None) == "\n\n"

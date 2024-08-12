@@ -116,14 +116,16 @@ performing the necessary calculations and adjustments. In the process, links can
 directly embedded in the references.
 
 ```markdown
-oui[1](b.pdf), certainement[2](a.html#chap2), non[1](b.pdf), oui[3](a.html#chap1)
+oui<sup>[1](b.pdf)</sup>, certainement<sup>[2](a.html#chap2)</sup>, 
+non<sup>[1](b.pdf)</sup>, oui<sup>[3](a.html#chap1)</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
 - [3] [a chap1](a.html#chap1)
 ```
 ---
-oui[1](b.pdf), certainement[2](a.html#chap2), non[1](b.pdf), oui[3](a.html#chap1)
+oui<sup>[1](b.pdf)</sup>, certainement<sup>[2](a.html#chap2)</sup>, 
+non<sup>[1](b.pdf)</sup>, oui<sup>[3](a.html#chap1)</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
@@ -194,28 +196,40 @@ docs = vectorstore.similarity_search(question)
 # Run
 print(chain.invoke({"documents": docs, "question": question}))
 ```
+The response from the LLM will be:
+```text
+The difference subject of mathematics can refer to various areas within the field, 
+such as number theory, algebra, geometry, analysis, and set theory. Each area 
+focuses on different concepts, methods, and theorems relevant to both mathematics 
+and empirical sciences [1](id=1). Additionally, mathematical games and puzzles 
+highlight the distinction in engagement and required expertise within the mathematical 
+domain [3](id=3).
+```
+
 The response will be:
 ```markdown
-The approaches to Task Decomposition include using large language models 
-(LLMs) with simple prompts, employing task-specific instructions, and 
-incorporating human inputs 
-^[1](https://lilianweng.github.io/posts/2023-06-23-agent/)^ 
-Additionally, it involves breaking down complex tasks into manageable 
-subgoals for efficient handling 
-^[1](https://lilianweng.github.io/posts/2023-06-23-agent/)^
+Pure mathematics focuses on abstract concepts and theoretical frameworks, 
+independent of practical applications, while applied mathematics is concerned 
+with mathematical methods that can be used in real-world situations. Pure 
+mathematics often explores fundamental truths and properties, whereas applied 
+mathematics is developed in correlation with specific applications in fields 
+like science and engineering <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>
+<sup>[[2](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>.
 
-- **1** [LLM Powered Autonomous Agents | Lil'Log](https://lilianweng.github.io/posts/2023-06-23-agent/)
+- **1** [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
+- **2** [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
 ```
 ---
-The approaches to Task Decomposition include using large language models 
-(LLMs) with simple prompts, employing task-specific instructions, and 
-incorporating human inputs 
-^[1](https://lilianweng.github.io/posts/2023-06-23-agent/)^ 
-Additionally, it involves breaking down complex tasks into manageable 
-subgoals for efficient handling 
-^[1](https://lilianweng.github.io/posts/2023-06-23-agent/)^
+Pure mathematics focuses on abstract concepts and theoretical frameworks, 
+independent of practical applications, while applied mathematics is concerned 
+with mathematical methods that can be used in real-world situations. Pure 
+mathematics often explores fundamental truths and properties, whereas applied 
+mathematics is developed in correlation with specific applications in fields 
+like science and engineering <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>
+<sup>[[2](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>.
 
-- **1** [LLM Powered Autonomous Agents | Lil'Log](https://lilianweng.github.io/posts/2023-06-23-agent/)
+- **1** [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
+- **2** [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
 ---
 
 ## Style
@@ -236,7 +250,7 @@ class MyReferenceStyle(ReferenceStyle):
         media: f'{media.metadata["source"]}#{media.metadata["row"]}'
 
     def format_reference(self, ref: int, media: BaseMedia) -> str:
-        return f"[{media.metadata['title']}]"
+        return f" (See {media.metadata['title']})"
 
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
         if not refs:

@@ -128,7 +128,7 @@ class MarkdownReferenceStyle(ReferenceStyle):
 
     def format_reference(self, ref: int, media: BaseMedia) -> str:
         source = _get_source_id_assigner(self.source_id_key)(media)
-        return f"^[{ref}]({source})^"
+        return f"<sup>[[{ref}]({source})]</sup>"
 
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
         if not refs:
