@@ -116,16 +116,16 @@ performing the necessary calculations and adjustments. In the process, links can
 directly embedded in the references.
 
 ```markdown
-oui<sup>[1](b.pdf)</sup>, certainement<sup>[2](a.html#chap2)</sup>, 
-non<sup>[1](b.pdf)</sup>, oui<sup>[3](a.html#chap1)</sup>
+yes<sup>[1](b.pdf)</sup>, certainly<sup>[2](a.html#chap2)</sup>, 
+no<sup>[1](b.pdf)</sup>, yes<sup>[3](a.html#chap1)</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
 - [3] [a chap1](a.html#chap1)
 ```
 ---
-oui<sup>[1](b.pdf)</sup>, certainement<sup>[2](a.html#chap2)</sup>, 
-non<sup>[1](b.pdf)</sup>, oui<sup>[3](a.html#chap1)</sup>
+yes<sup>[1](b.pdf)</sup>, certainly<sup>[2](a.html#chap2)</sup>, 
+no<sup>[1](b.pdf)</sup>, yes<sup>[3](a.html#chap1)</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
