@@ -8,7 +8,9 @@ used to develop that answer."**
 
 It's a very difficult goal to achieve.
 
-[Sample](langchain_reference.ipynb)
+**Now that's not a problem!**
+
+[Try the notebook](langchain_reference.ipynb)
 
 ## Introduction
 When publishing the LLM's response, it can be helpful to include links to the documents 
@@ -116,16 +118,16 @@ performing the necessary calculations and adjustments. In the process, links can
 directly embedded in the references.
 
 ```markdown
-yes<sup>[1](b.pdf)</sup>, certainly<sup>[2](a.html#chap2)</sup>, 
-no<sup>[1](b.pdf)</sup>, yes<sup>[3](a.html#chap1)</sup>
+yes<sup>[[1](b.pdf)]</sup>, certainly<sup>[[2](a.html#chap2)]</sup>, 
+no<sup>[[1](b.pdf)]</sup>, yes<sup>[[3](a.html#chap1)]</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
 - [3] [a chap1](a.html#chap1)
 ```
 ---
-yes<sup>[1](b.pdf)</sup>, certainly<sup>[2](a.html#chap2)</sup>, 
-no<sup>[1](b.pdf)</sup>, yes<sup>[3](a.html#chap1)</sup>
+yes<sup>[[1](b.pdf)]</sup>, certainly<sup>[[2](a.html#chap2)]</sup>, 
+no<sup>[[1](b.pdf)]</sup>, yes<sup>[[3](a.html#chap1)]</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
@@ -149,11 +151,13 @@ The following prompt asks LLM to handle references simply, in the form :
 `[<num_reference>](id=<position_du_fragment>)`.
 
 ```python
-# from langchain_references import FORMAT_REFERENCES
-FORMAT_REFERENCES=\
-    'When referencing the documents, add a citation right after. 
-    'Use "[NUMBER](id)" for the citation '
-    '(e.g. "The Space Needle is in Seattle [1](id=55)[2](id=12).").'
+from langchain_references import FORMAT_REFERENCES
+print(f{FORMAT_REFERENCES=})
+```
+```text
+FORMAT_REFERENCES='When referencing the documents, add a citation right after.' 
+'Use "[NUMBER](id=ID_NUMBER)" for the citation (e.g. "The Space Needle is in '
+'Seattle [1](id=55)[2](id=12).").'
 ```
 And the prompt:
 ```python
