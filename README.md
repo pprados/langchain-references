@@ -13,9 +13,9 @@ It's a very difficult goal to achieve.
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pprados/langchain-references/blob/master/langchain_reference.ipynb)
 
 ## Introduction
-When publishing the LLM's response, it can be helpful to include links to the documents 
-used to produce the answer. This way, the user can learn more or verify that the 
-response is accurate.
+With a RAG project, when publishing the LLM's response, it can be helpful to include 
+links to the documents used to produce the answer. This way, the user can learn more 
+or verify that the response is accurate.
 
 The list of documents is retrieved from the vector database. Each fragment carries 
 metadata that allows for precise identification of its origin (the URL, the page, 
@@ -73,14 +73,14 @@ the user as to why this is the case.
 
 What should be produced is closer to this:
 ```markdown
-Yes[1], certainly[2], no[3], yes[4]
+Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[3]</sup>, yes<sup>[4]</sup>
 
 - [1],[3] [b](b.pdf)
 - [2]     [a chap2](a.html#chap2)
 - [4]     [a chap1](a.html#chap1)
 ```
 ---
-Yes[1], certainly[2], no[3], yes[4]
+Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[3]</sup>, yes<sup>[4]</sup>
 
 - [1],[3] [b](b.pdf)
 - [2]     [a chap2](a.html#chap2)
@@ -93,14 +93,14 @@ The best solution is to adjust the reference numbers when they share the same UR
 This adjustment should be made during the LLM’s response generation to achieve the 
 following:
 ```markdown
-yes[1], certainly[2], no[1], yes[3]
+Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[1]</sup>, yes<sup>[4]</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
 - [3] [a chap1](a.html#chap1)
 ```
 ---
-yes[1], certainly[2], no[1], yes[3]
+Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[1]</sup>, yes<sup>[4]</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
@@ -134,7 +134,7 @@ no<sup>[[1](b.pdf)]</sup>, yes<sup>[[3](a.html#chap1)]</sup>
 - [3] [a chap1](a.html#chap1)
 ---
 
-## Usage
+## Usage:
 **You can't ask too much of an LLM.** Imperative code is often the best solution. 
 To manage document references correctly, we'll separate responsibilities into two 
 parts. The first is not too complex for an LLM: indicate a reference number, 
@@ -148,8 +148,12 @@ to add an identifier (the position of each document in the list), so that LLM ca
 respond with the unique number of the injected document. In this way, it is possible 
 to retrieve each original document and use the metadata to build a URL, for example. 
 The following prompt asks LLM to handle references simply, in the form : 
-`[<num_reference>](id=<position_du_fragment>)`.
+`[<number_of_reference>](id=<index_of_fragment>)`.
 
+### Chain without retriever
+To use a chain without a retriever, you need to apply some similar steps.
+
+Get the format of the references.
 ```python
 from langchain_references import FORMAT_REFERENCES
 print(f{FORMAT_REFERENCES=})
@@ -159,12 +163,12 @@ FORMAT_REFERENCES='When referencing the documents, add a citation right after.'
 'Use "[NUMBER](id=ID_NUMBER)" for the citation (e.g. "The Space Needle is in '
 'Seattle [1](id=55)[2](id=12).").'
 ```
-And the prompt:
+And create a prompt:
 ```python
 prompt=ChatPromptTemplate.from_template(
 """
 Here, the context: 
-{documents}
+{context}
 
 {format_references}
 
@@ -179,21 +183,21 @@ def format_docs(docs):
         [f"<document id={i+1}>\n{doc.page_content}\n</document>\n" 
          for i,doc in enumerate(docs)]
     )
+context = RunnablePassthrough.assign(
+    context=lambda input: format_docs(input["documents"]),
+    format_references=lambda _: FORMAT_REFERENCES,
+)
 ```
 Then, thanks to `langchain-references`, to modify the tokens produced by the LLM.
 Encapsulate the invocation of the model with `manage_references()` to adjust the
 reference numbers and inject the URLs of the original documents.
 ```python
 from langchain_references import manage_references
-chain = manage_references(
-    context
-    | rag_prompt
-    | model,
-) | StrOutputParser()
+chain = context | manage_references(rag_prompt| model) | StrOutputParser()
 ```
 Now, invoke the chain with the documents and the question.
 ```python
-question = "What are the approaches to Task Decomposition?"
+question = "What is the difference kind of games and competition of mathematics?"
 
 docs = vectorstore.similarity_search(question)
 
@@ -202,33 +206,38 @@ print(chain.invoke({"documents": docs, "question": question}))
 ```
 The response from the LLM will be:
 ```text
-The difference subject of mathematics can refer to various areas within the field, 
-such as number theory, algebra, geometry, analysis, and set theory. Each area 
-focuses on different concepts, methods, and theorems relevant to both mathematics 
-and empirical sciences [1](id=1). Additionally, mathematical games and puzzles 
-highlight the distinction in engagement and required expertise within the mathematical 
-domain [3](id=3).
+Mathematical games are structured activities defined by clear mathematical parameters, 
+focusing on strategy and skills without requiring deep mathematical knowledge, such as 
+tic-tac-toe or chess [1](id=1). In contrast, mathematics competitions, like the 
+International Mathematical Olympiad, involve participants solving complex mathematical 
+problems, often requiring proof or detailed solutions [2](id=2). Essentially, games 
+are for enjoyment and skill development, while competitions test and challenge 
+mathematical understanding and problem-solving abilities.'
 ```
 
-The response will be:
+The response with `manage_reference()` will be:
 ```markdown
-The difference subject of mathematics can refer to various areas within the field, 
-such as number theory, algebra, geometry, analysis, and set theory. Each area 
-focuses on different concepts, methods, and theorems relevant to both mathematics 
-and empirical sciences <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>. Additionally, mathematical games and puzzles 
-highlight the distinction in engagement and required expertise within the mathematical 
-domain <sup>[[3](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>.
+Mathematical games are structured activities defined by clear mathematical parameters, 
+focusing on strategy and skills without requiring deep mathematical knowledge, such as 
+tic-tac-toe or chess <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>. In contrast, mathematics competitions, like 
+the International Mathematical Olympiad, involve participants solving complex 
+mathematical  problems, often requiring proof or detailed solutions 
+<sup>[[2](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>. Essentially, games are for enjoyment and skill development, 
+while competitions test and challenge mathematical understanding and problem-solving 
+abilities..
 
 - **1** [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
 - **2** [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
 ```
 ---
-The difference subject of mathematics can refer to various areas within the field, 
-such as number theory, algebra, geometry, analysis, and set theory. Each area 
-focuses on different concepts, methods, and theorems relevant to both mathematics 
-and empirical sciences <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>. Additionally, mathematical games and puzzles 
-highlight the distinction in engagement and required expertise within the mathematical 
-domain <sup>[[3](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>.
+Mathematical games are structured activities defined by clear mathematical parameters, 
+focusing on strategy and skills without requiring deep mathematical knowledge, such as 
+tic-tac-toe or chess <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>. In contrast, mathematics competitions, like 
+the International Mathematical Olympiad, involve participants solving complex 
+mathematical  problems, often requiring proof or detailed solutions 
+<sup>[[2](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>. Essentially, games are for enjoyment and skill development, 
+while competitions test and challenge mathematical understanding and problem-solving 
+abilities..
 
 - **1** [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
 - **2** [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
@@ -237,35 +246,61 @@ domain <sup>[[3](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>.
 The `manage_references()` take a `Runnable[LanguageModelInput, LanguageModelOutput]` as 
 an argument and return a `Runnable[LanguageModelInput, LanguageModelOutput]`.
 
-The input of this `Runnable` must a dictionary with the keys *documents_key* 
-(`documents` by default) and what the runnable wants as a parameter.
+The input for this `Runnable` must be a dictionary with the keys *documents_key* 
+(default is `documents`) and whatever the runnable requires as a parameter.
 
+### Chain with retriever
+With a chain with a retriever, the process is the same, but the documents are retrieved
+by the retriever. The retriever must be added to the chain before the LLM.
+
+```python
+retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
+context = (
+    RunnableParallel(
+        # Get list of documents, necessary for reference analysis
+        documents=(itemgetter("question") | retriever),
+        # and question
+        question=itemgetter("question"),
+    ).assign(
+        context=lambda input: format_docs(input["documents"]),
+        format_references=lambda _: FORMAT_REFERENCES,
+    )
+)
+```
+And invoke with:
+```python
+answer = (context | manage_references(rag_prompt | model) | StrOutputParser() ).invoke({"question": question})
+pprint(answer)
+```
 ## Style
 Different styles can be used to display the references. The default style is:
 Markdown, but you can use:
-- `EmptyReferenceStyle` : no references are produce
+- `EmptyReferenceStyle` : no references are produced
 - `TextReferenceStyle` : for console output
 - `MarkdownReferenceStyle` : format markdown output
 - `HTMLReferenceStyle` : format html output
 
-You can adjust the style to suit the specific requirements of your documents.
+You can adjust the style or how to retrieve the URL from the metadata.
 ```python
 from langchain_references import ReferenceStyle
 from langchain_core.documents.base import BaseMedia
 from typing import List, Tuple
+def my_source_id(media: BaseMedia) -> str:
+    # Documents loaded from a CSV file with 'row' in metadata
+    return f'{media.metadata["source"]}#{media.metadata["row"]}'
+
 class MyReferenceStyle(ReferenceStyle):
-    source_id_key = lambda \
-        media: f'{media.metadata["source"]}#{media.metadata["row"]}'
+    source_id_key = my_source_id
 
     def format_reference(self, ref: int, media: BaseMedia) -> str:
-        return f" (See {media.metadata['title']})"
+        return f"[{media.metadata['title']}]"
 
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
         if not refs:
             return ""
         result = []
         for ref, media in refs:
-            source = self.source_id_key.__func__(media)
+            source = self.source_id_key.__func__(media)  # type: ignore
             result.append(f"- [{ref}] {source}\n")
         if not result:
             return ""
@@ -275,7 +310,7 @@ class MyReferenceStyle(ReferenceStyle):
 ## How does it work?
 On the fly, each token is captured to identify the pattern of references. As soon as 
 the beginning of a text seems to match, tokens are accumulated until references are 
-identified or the capture is abandoned, as this is a false alarm. The accumulated 
+identified or the capture is abandoned, as this is a false detection. The accumulated 
 tokens are then produced, before the analysis is resumed.
 As soon as a token appears, it is assigned an identifier, in relation to the various 
 documents present. Then `format_reference()` is invoked. 

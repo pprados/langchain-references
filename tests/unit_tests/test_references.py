@@ -1,16 +1,41 @@
-from typing import Generator, List, Tuple, cast
+from typing import Any, Generator, Iterator, List, Optional, Tuple, cast
 
 from langchain_core.documents import Document
 from langchain_core.documents.base import BaseMedia
+from langchain_core.language_models import LanguageModelInput, LanguageModelOutput
 from langchain_core.messages import AIMessageChunk, BaseMessage
+from langchain_core.runnables import Runnable, RunnableConfig
 
 from langchain_references import (
     EmptyReferenceStyle,
     HTMLReferenceStyle,
     MarkdownReferenceStyle,
     TextReferenceStyle,
+    manage_references,
 )
 from langchain_references.references import ReferenceStyle, _manage_references
+
+
+class _TestRunnable(Runnable[LanguageModelInput, LanguageModelOutput]):
+    text_fragments: List[str]
+
+    def __init__(self, text_fragments: List[str]) -> None:
+        self.text_fragments = text_fragments
+
+    def invoke(
+        self, input: LanguageModelInput, config: Optional[RunnableConfig] = None
+    ) -> LanguageModelOutput:
+        raise NotImplementedError()
+
+    def stream(
+        self,
+        input: LanguageModelInput,
+        config: Optional[RunnableConfig] = None,
+        **kwargs: Optional[Any],
+    ) -> Iterator[LanguageModelOutput]:
+        for text_fragment in self.text_fragments:
+            yield text_fragment
+
 
 _four_documents = [
     Document(
@@ -101,15 +126,95 @@ def test_split_token() -> None:
 
 
 def test_windows_large() -> None:
-    manage_references = _manage_references(
-        style=TestReferenceStyle(), medium=_two_documents
+    assert (
+        "".join(
+            [
+                r.content  # type: ignore
+                for r in manage_references(
+                    _TestRunnable(
+                        text_fragments=[
+                            "Hello [",
+                            "01234567890123456789",
+                            "\n",
+                        ]
+                    ),
+                    style=TestReferenceStyle(),
+                ).stream(
+                    {"documents": _two_documents}  # type: ignore
+                )
+            ]
+        )
+        == "Hello [01234567890123456789\n"
     )
 
-    # Test if windows_str is bigger than _MAX_WINDOWS_SIZE
-    _send(manage_references, None)
-    assert _send(manage_references, "Hello [") == "Hello "
-    assert _send(manage_references, "01234567890123456789") == "[01234567890123456789"
-    assert _send(manage_references, None) == "\n"
+    assert (
+        "".join(
+            [
+                r.content  # type: ignore
+                for r in manage_references(
+                    _TestRunnable(
+                        text_fragments=[
+                            "Hello [",
+                            "0123456789012345678[",
+                            "1](id=1)\n",
+                        ]
+                    ),
+                    style=TestReferenceStyle(),
+                ).stream(
+                    {"documents": _two_documents}  # type: ignore
+                )
+            ]
+        )
+        == "Hello [0123456789012345678[1](a.html#chap1)\n"
+        "\n"
+        "- 1 [doc1](a.html#chap1#1)\n"
+    )
+
+    assert (
+        "".join(
+            [
+                r.content  # type: ignore
+                for r in manage_references(
+                    _TestRunnable(
+                        text_fragments=[
+                            "Hello [",
+                            "01234567890123456[1]",
+                            "(id=1)\n",
+                        ]
+                    ),
+                    style=TestReferenceStyle(),
+                ).stream(
+                    {"documents": _two_documents}  # type: ignore
+                )
+            ]
+        )
+        == "Hello [01234567890123456[1](a.html#chap1)\n"
+        "\n"
+        "- 1 [doc1](a.html#chap1#1)\n"
+    )
+
+    assert (
+        "".join(
+            [
+                r.content  # type: ignore
+                for r in manage_references(
+                    _TestRunnable(
+                        text_fragments=[
+                            "Hello [",
+                            "01234567890123456[1]",
+                            "(id=1)\n",
+                        ]
+                    ),
+                    style=TestReferenceStyle(),
+                ).stream(
+                    {"documents": _two_documents}  # type: ignore
+                )
+            ]
+        )
+        == "Hello [01234567890123456[1](a.html#chap1)\n"
+        "\n"
+        "- 1 [doc1](a.html#chap1#1)\n"
+    )
 
 
 def test_windows_not_empty_at_end() -> None:
@@ -165,8 +270,8 @@ def test_NUMBER() -> None:
     )
 
     _send(manage_references, None)
-    _send(manage_references, "[NUMBER](id=1)")
-    assert _send(manage_references, "") == "[1](a.html#chap1)"
+    _send(manage_references, "[NUMBER](id=1)") == "[1](a.html#chap1)"
+    assert _send(manage_references, "") == ""
 
 
 def test_style_empty() -> None:

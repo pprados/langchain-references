@@ -273,22 +273,25 @@ def _manage_references(
             if isinstance(message, BaseMessageChunk):
                 if isinstance(message.content, str):
                     text_fragment = message.content
-                # elif isinstance(message.content, list):  # FIXME list[Dict]
+                # elif isinstance(message.content, list):  # PPR list[Dict]
                 #     token = "".join(message.content)
                 else:
                     raise ValueError(f"Invalid content type {type(message.content)}")
             if isinstance(message, str):
                 text_fragment = message
             if wait:
-                if "[" in cast(str, text_fragment):
-                    pos = text_fragment.find("[")
-                    before = text_fragment[:pos]
-                    after = text_fragment[pos:]
+                windows_str += text_fragment
+                if "[" in cast(str, windows_str):
+                    pos = windows_str.find("[")
+                    before = windows_str[:pos]
+                    after = windows_str[pos:]
                     windows_str = after
                     wait = False
 
                     if before:
                         result = AIMessageChunk(content=before)
+                    else:
+                        matched = _ids_pattern.search(windows_str)
                 else:
                     windows_str = ""
                     result = AIMessageChunk(content=text_fragment)
@@ -299,10 +302,11 @@ def _manage_references(
                     if len(windows_str) > _MAX_WINDOWS_SIZE:
                         # Find [ without reference
                         # Try to return to wait state
-                        if "[" not in windows_str[_MAX_WINDOWS_SIZE:]:
+                        pos = windows_str.find("[", 1)
+                        if pos > 0:
                             wait = True
-                            result = AIMessageChunk(content=windows_str)
-                            windows_str = ""
+                            result = AIMessageChunk(content=windows_str[:pos])
+                            windows_str = windows_str[pos:]
                         else:
                             yield AIMessageChunk(
                                 content=windows_str[:_MAX_WINDOWS_SIZE]
