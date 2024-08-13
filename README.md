@@ -212,29 +212,33 @@ domain [3](id=3).
 
 The response will be:
 ```markdown
-Pure mathematics focuses on abstract concepts and theoretical frameworks, 
-independent of practical applications, while applied mathematics is concerned 
-with mathematical methods that can be used in real-world situations. Pure 
-mathematics often explores fundamental truths and properties, whereas applied 
-mathematics is developed in correlation with specific applications in fields 
-like science and engineering <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>
-<sup>[[2](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>.
+The difference subject of mathematics can refer to various areas within the field, 
+such as number theory, algebra, geometry, analysis, and set theory. Each area 
+focuses on different concepts, methods, and theorems relevant to both mathematics 
+and empirical sciences <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>. Additionally, mathematical games and puzzles 
+highlight the distinction in engagement and required expertise within the mathematical 
+domain <sup>[[3](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>.
 
 - **1** [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
 - **2** [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
 ```
 ---
-Pure mathematics focuses on abstract concepts and theoretical frameworks, 
-independent of practical applications, while applied mathematics is concerned 
-with mathematical methods that can be used in real-world situations. Pure 
-mathematics often explores fundamental truths and properties, whereas applied 
-mathematics is developed in correlation with specific applications in fields 
-like science and engineering <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>
-<sup>[[2](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>.
+The difference subject of mathematics can refer to various areas within the field, 
+such as number theory, algebra, geometry, analysis, and set theory. Each area 
+focuses on different concepts, methods, and theorems relevant to both mathematics 
+and empirical sciences <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>. Additionally, mathematical games and puzzles 
+highlight the distinction in engagement and required expertise within the mathematical 
+domain <sup>[[3](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>.
 
 - **1** [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
 - **2** [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
 ---
+
+The `manage_references()` take a `Runnable[LanguageModelInput, LanguageModelOutput]` as 
+an argument and return a `Runnable[LanguageModelInput, LanguageModelOutput]`.
+
+The input of this `Runnable` must a dictionary with the keys *documents_key* 
+(`documents` by default) and what the runnable wants as a parameter.
 
 ## Style
 Different styles can be used to display the references. The default style is:

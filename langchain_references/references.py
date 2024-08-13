@@ -336,6 +336,9 @@ def _update_references(
     for input in inputs:
         if "input" not in input:
             continue
+        assert isinstance(
+            input, dict
+        ), "The input to manage_references() must be a dict."
         medium = input["input"]["medium"]
         manage_references = _manage_references(style=style, medium=medium)
         manage_references.send(None)  # Start
@@ -377,7 +380,7 @@ def manage_references(
 ) -> Runnable[LanguageModelInput, LanguageModelOutput]:
     return (
         RunnablePassthrough.assign(medium=lambda x: x[documents_key])
-        | RunnablePassthrough.assign(input=lambda x: x)
+        | RunnablePassthrough.assign(input=lambda x: x)  # Duplicate all the input
         | RunnableGenerator(
             transform=_update_references, atransform=_aupdate_references  # type: ignore
         ).bind(runnable=runnable, style=style)
