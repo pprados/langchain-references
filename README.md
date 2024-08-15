@@ -304,7 +304,7 @@ from langchain_core.documents.base import BaseMedia
 from typing import List, Tuple
 def my_source_id(media: BaseMedia) -> str:
     # Documents loaded from a CSV file with 'row' in metadata
-    return f'{media.metadata["source"]}#{media.metadata["row"]}'
+    return f'{media.metadata["source"]}#row={media.metadata["row"]}'
 
 class MyReferenceStyle(ReferenceStyle):
     source_id_key = my_source_id
