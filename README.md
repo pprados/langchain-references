@@ -8,7 +8,22 @@ used to develop that answer."**
 
 It's a very difficult goal to achieve.
 
-**Now that's not a problem!**
+**Now that's not a problem!**. Do you need a response like this ?
+
+---
+Mathematical games are structured activities defined by clear mathematical parameters, 
+focusing on strategy and skills without requiring deep mathematical knowledge, such as 
+tic-tac-toe or chess <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>. In contrast, mathematics competitions, like 
+the International Mathematical Olympiad, involve participants solving complex 
+mathematical  problems, often requiring proof or detailed solutions 
+<sup>[[2](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>. Essentially, games are for enjoyment and skill development, 
+while competitions test and challenge mathematical understanding and problem-solving 
+abilities..
+
+- **1** [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
+- **2** [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
+---
+
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pprados/langchain-references/blob/master/langchain_reference.ipynb)
 
@@ -62,7 +77,9 @@ Yes, certainly, no, yes
 - [c](c.csv)
 ---
 
-Optionally, duplicates can be filtered out.
+Optionally, duplicates can be filtered out. The most absurd situation in this scenario 
+is when the LLM says he doesn't know the answer, but proposes a list 
+of documents anyway.
 
 We observe that the result is not satisfactory. First, the user will be disappointed 
 when reading the file `c.csv` to find that it doesn’t contain any information 
