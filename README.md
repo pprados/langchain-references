@@ -8,7 +8,7 @@ used to develop that answer."**
 
 It's a very difficult goal to achieve.
 
-**Now that's not a problem!**. Do you need a response like this ?
+**Now that's not a problem!**. Do you want an answer like this?
 
 ---
 Mathematical games are structured activities defined by clear mathematical parameters, 
