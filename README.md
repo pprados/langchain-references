@@ -323,6 +323,9 @@ class MyReferenceStyle(ReferenceStyle):
             return ""
         return "\n\n" + "".join(result)
 ```
+```python
+chain = context | manage_references(rag_prompt| model, style=MyReferenceStyle()) | StrOutputParser()
+```
 
 ## How does it work?
 On the fly, each token is captured to identify the pattern of references. As soon as 
