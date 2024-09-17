@@ -486,13 +486,20 @@ def test_style_html() -> None:
 
 
 def test_my_style() -> None:
+    # Test My style, with the exclusion of big documents (total_pages > 5)
     def my_source(media: BaseMedia) -> str:
-        return f'{media.metadata["source"]}#{media.metadata["row"]}'
+        if "row" in media.metadata:
+            return f'{media.metadata["source"]}#{media.metadata["row"]}'
+        return media.metadata["source"]
 
     class MyReferenceStyle(ReferenceStyle):
         source_id_key = my_source
 
-        def format_reference(self, ref: int, media: BaseMedia) -> str:
+        def format_reference(self, ref: int, media: BaseMedia) -> Optional[str]:
+            get_total_pages = self._get_key_assigner(self.total_pages_key)
+            total_pages = get_total_pages(media)
+            if total_pages and total_pages > self.max_total_pages:
+                return None
             return f"[{media.metadata['title']}]"
 
         def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
@@ -517,6 +524,11 @@ def test_my_style() -> None:
             id="2",
             metadata={"source": "source2", "row": 2, "title": "title2"},
         ),
+        Document(
+            page_content="doc3",
+            id="3",
+            metadata={"source": "source3", "total_pages": 200, "title": "title3"},
+        ),
     ]
 
     # Test with title
@@ -526,11 +538,13 @@ def test_my_style() -> None:
         _send(
             manage_references,
             "yes[1](id=3), maybe[2](id=2), "
-            "no[3](id=4), yes[4](id=1), error[5](id=10)",
+            "no[3](id=4), yes[4](id=1), remove[5](id=3), error[5](id=10)",
         )
         == "yes"
     )
-    assert _send(manage_references, "") == ", maybe[title2], no, yes[title1], error"
+    assert _send(manage_references, "") == (
+        ", maybe[title2], no, yes[title1], " "remove, error"
+    )
     assert (
         _send(manage_references, None) == "\n\n" "- [1] source2#2\n" "- [2] source1#1\n"
     )

@@ -51,34 +51,46 @@ _ids_pattern = re.compile(r" *(\[(?:\d+|NUMBER)]\(id=\d*\))")
 _id_pattern = re.compile(r"\[(?:\d+|NUMBER)]\(id=(\d*)\)")
 
 
-def _get_source_id_assigner(
-    source_id_key: str | Callable[[BaseMedia], str],
-) -> Callable[[BaseMedia], Union[str, None]]:
-    """Get the source id from the document."""
-    if isinstance(source_id_key, str):
-        return lambda doc: doc.metadata[source_id_key]
-    elif callable(source_id_key):
-        if source_id_key.__self__:  # type: ignore
-            return source_id_key.__func__  # type: ignore
-        return source_id_key
-    else:
-        raise ValueError(
-            f"source_id_key should be either None, a string or a callable. "
-            f"Got {source_id_key} of type {type(source_id_key)}."
-        )
-
-
 # %% Different styles of references
 class ReferenceStyle:
     source_id_key: Union[str, Callable[[BaseMedia], str]] = "source"
     """The metadata to identify the id of the parents """
+    total_pages_key: Union[str, Callable[[BaseMedia], str]] = "total_pages"
+    """The key with the total number of pages in the document"""
+    max_total_pages: int = 4
+    """The maximum number of pages to reference a document"""
+
+    @staticmethod
+    def _get_key_assigner(
+        source_id_key: str | Callable[[BaseMedia], Any],
+    ) -> Callable[[BaseMedia], Any]:
+        """Get the source id from the document."""
+        if isinstance(source_id_key, str):
+            return lambda doc: doc.metadata.get(source_id_key)
+        elif callable(source_id_key):
+            if source_id_key.__self__:  # type: ignore
+                return source_id_key.__func__  # type: ignore
+            return source_id_key
+        else:
+            raise ValueError(
+                f"source_id_key should be either None, a string or a callable. "
+                f"Got {source_id_key} of type {type(source_id_key)}."
+            )
 
     @abstractmethod
-    def format_reference(self, ref: int, media: BaseMedia) -> str:
+    def format_reference(self, ref: int, media: BaseMedia) -> Optional[str]:
+        """Format a reference in the text.
+        :param ref: the reference number
+        :param media: the document
+        :return: the formatted reference or None to ignore the reference
+        """
         ...
 
     @abstractmethod
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
+        """Format all references at the end of the text.
+        :param refs: the list of references
+        :return: the formatted list of references"""
         ...
 
 
@@ -87,7 +99,7 @@ class EmptyReferenceStyle(ReferenceStyle):
     Remove all references.
     """
 
-    def format_reference(self, ref: int, media: BaseMedia) -> str:
+    def format_reference(self, ref: int, media: BaseMedia) -> Optional[str]:
         return ""
 
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
@@ -99,17 +111,17 @@ class TextReferenceStyle(ReferenceStyle):
     Remove all references.
     """
 
-    def format_reference(self, ref: int, media: BaseMedia) -> str:
+    def format_reference(self, ref: int, media: BaseMedia) -> Optional[str]:
         return f"[{ref}]"
 
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
         if not refs:
             return ""
-        get_source = _get_source_id_assigner(self.source_id_key)
+        get_source = self._get_key_assigner(self.source_id_key)
         result = []
         for ref, media in refs:
             source = get_source(media)
-            if "title" in media.metadata:
+            if media.metadata.get("title", ""):
                 result.append(f"- [{ref}] {media.metadata['title']} ({source})\n")
             else:
                 result.append(f"- [{ref}] {source}\n")
@@ -125,17 +137,17 @@ class MarkdownReferenceStyle(ReferenceStyle):
     """
 
     def format_reference(self, ref: int, media: BaseMedia) -> str:
-        source = _get_source_id_assigner(self.source_id_key)(media)
+        source = self._get_key_assigner(self.source_id_key)(media)
         return f"<sup>[[{ref}]({source})]</sup>"
 
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
         if not refs:
             return ""
-        get_source = _get_source_id_assigner(self.source_id_key)
+        get_source = self._get_key_assigner(self.source_id_key)
         result = []
         for ref, media in refs:
             source = get_source(media)
-            if "title" in media.metadata:
+            if media.metadata.get("title", ""):
                 result.append(f"- **{ref}** [{media.metadata['title']}]({source})\n")
             else:
                 result.append(f"- **{ref}** <{source}>\n")
@@ -151,17 +163,17 @@ class HTMLReferenceStyle(ReferenceStyle):
     """
 
     def format_reference(self, ref: int, media: BaseMedia) -> str:
-        source = _get_source_id_assigner(self.source_id_key)(media)
+        source = self._get_key_assigner(self.source_id_key)(media)
         return f'<sup><a href="{source}">{ref}</a></sup>'
 
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
-        get_source = _get_source_id_assigner(self.source_id_key)
+        get_source = self._get_key_assigner(self.source_id_key)
         if not refs:
             return ""
         result = ["\n<ol>"]
         for _, media in refs:
             source = get_source(media)
-            if "title" in media.metadata:
+            if media.metadata.get("title", ""):
                 result.append(
                     f'<li><a href="{source}">{media.metadata["title"]}</a></li>'
                 )
@@ -178,7 +190,7 @@ def _analyse_doc_ids(
     mediums: Sequence[BaseMedia],
 ) -> Dict[int, int]:
     # Pour chaque doc, trouve un id de doc de référence
-    source_id_key_get = _get_source_id_assigner(style.source_id_key)
+    source_id_key_get = ReferenceStyle._get_key_assigner(style.source_id_key)
     seen: Dict = dict[str, int]()
     uniq_id_for_chunk = dict[int, int]()
     gen_id = 1
@@ -240,9 +252,13 @@ def _patch_id(
             #     continue  # Ignore invalid references
             # Ask to format the reference (id and link or whatever)
             new_reference = style.format_reference(new_ref, media)
-            ids[new_ref] = media
-            # Add the new formatted reference
-            result += new_reference
+            if new_reference is not None:
+                # Save the reference
+                ids[new_ref] = media
+                # Add the new formatted reference
+                result += new_reference
+            else:
+                last_ref -= 1
             last = m.end()
         # Return all results and the last position
         formated_result = (result, last)

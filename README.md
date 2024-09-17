@@ -8,7 +8,8 @@ used to develop that answer."**
 
 It's a very difficult goal to achieve.
 
-**Now that's not a problem!**. Do you want an answer like this?
+**Now that's not a problem!**. In just one hour, you can significantly improve your RAG 
+project. Do you want an answer like this?
 
 ---
 Mathematical games are structured activities defined by clear mathematical parameters, 
@@ -36,72 +37,101 @@ The list of documents is retrieved from the vector database. Each fragment carri
 metadata that allows for precise identification of its origin (the URL, the page, 
 the title, the position of the first character, etc.).
 
+![Documents/Chunks/Facts](documents_chunk_fact.png)
+The different combinations, document, chunk and fact (argument allowing an answer) lead 
+to significant complexity in the creation of the list of documents.
+- The answer is produced from a fact, extracted from a fragment coming from a single document. 
+The link to the fragment is sufficient. The link can reference the document itself, if 
+it is not too long. Otherwise, it provides no help to the user. He cannot reread 200 
+pages to find the fact.
+- The answer is produced from several facts, extracted from several fragments of several 
+documents. In this case, links to both fragments must be produced.
+- The response is produced from several facts, extracted from several fragments of the 
+same document. If there are links for each fragment, then both links must be produced. 
+If there are only links to the original document, you should not indicate 2 documents, 
+even though they are the same. Footnote reference numbers need to be adjusted.
+- The answer is produced from several facts, extracted from a single fragment, from a 
+single document. In this case, the footnote reference numbers must be adjusted to 
+have the same number.
+- A fragment does not carry a fact that was used for the answer. The document 
+should not be referenced.
+
+
 To be clearer, let's position ourselves in a typical scenario. A question is posed in 
 a prompt, which is then processed with five documents:
 
-- `a.html#chap1`: The fragment relates to Chapter 1 of the `a.html` file.
-- `a.html#chap2`: The fragment relates to Chapter 2 of the `a.html` file.
-- `b.pdf`: The fragment comes from the `b.pdf` file.
-- `b.pdf`: Another fragment also comes from the `b.pdf` file.
-- `c.csv`: The fragment is a line from the `c.csv` file.
+1. `a.html#chap1`: The fragment relates to Chapter 1 of the `a.html` file.
+2. `a.html#chap2`: The fragment relates to Chapter 2 of the `a.html` file.
+3. `b.pdf`: The fragment comes from the `b.pdf` file.
+4. `b.pdf`: Another fragment also comes from the `b.pdf` file.
+5. `c.pdf`: A fragment from a big document `c.pdf`, with 200 pages.
+6. `d.csv`: The fragment is a line from the `c.csv` file.
 
 Given the scenario where the LLM uses multiple fragments from different documents to 
 generate a response, the references should be formatted as footnotes, reflecting 
 the different sources. For example, the LLM answers several questions using the 
 referenced fragments:
 ```markdown
-Yes[1](id=3), certainly[2](id=2), no[3](id=4), yes[4](id=1)
+Yes[1](id=3), certainly[2](id=2), no[3](id=4), yes[4](id=1), yes[5](id=5)
 ```
-In this situation, the first four fragments are used, but not the last one. 
+In this situation, the first five fragments are used, but not the last one. 
 The first two have different URLs, even though they come from the same document. 
-The next two share the same URL but refer to different fragments.
+The next two share the same URL but refer to different fragments. The fifth comes from 
+a 200-page document, which doesn't help the user.
 
 The naive approach is to list all the injected documents after the response and, 
 if possible, extract a specific title for each fragment.  
 ```markdown
 Yes, certainly, no, yes
 
-- [a chap1](a.html#chap1)
-- [a chap2](a.html#chap2)
-- [b frag1](b.pdf)
-- [b frag2](b.pdf)
-- [c](c.csv)
+1. [a chap1](a.html#chap1)
+2. [a chap2](a.html#chap2)
+3. [b frag1](b.pdf)
+4. [b frag2](b.pdf)
+5. [c](c.pdf)
+6. [d](d.csv)
 ```
 ---
 Yes, certainly, no, yes
 
-- [a chap1](a.html#chap1)
-- [a chap2](a.html#chap2)
-- [b frag1](b.pdf)
-- [b frag2](b.pdf)
-- [c](c.csv)
+1. [a chap1](a.html#chap1)
+2. [a chap2](a.html#chap2)
+3. [b frag1](b.pdf)
+4. [b frag2](b.pdf)
+5. [c](c.pdf)
+6. [d](d.csv)
 ---
 
 Optionally, duplicates can be filtered out. The most absurd situation in this scenario 
 is when the LLM says he doesn't know the answer, but proposes a list 
-of documents anyway.
+of documents anyway. Other scenarios are problematic with this approach. If the answer 
+is based on several documents, it is not possible to associate each argument with a 
+particular document. If several documents are used to answer the question, it's not 
+necessary to list them all - just one is enough. All this creates confusion and is not 
+at the level of quality expected by the user.
 
-We observe that the result is not satisfactory. First, the user will be disappointed 
-when reading the file `c.csv` to find that it doesn’t contain any information 
-supporting the response. This file should be excluded from the reference list since 
-it provides no useful information and was not used by the LLM to generate the answer. 
-There are also two different links leading to the same document, which could confuse 
-the user as to why this is the case.
+We observe that the result is not satisfactory. First, the user will be disappointed, 
+when reading the `c.pdf` file, to discover that the document is 200 pages long and 
+that `d.csv` has no facts to justify the answer. File `d.csv` should be excluded from 
+the list of references, as it provides no useful information. It is not used by 
+LLM to produce the answer. 
 
 What should be produced is closer to this:
 ```markdown
-Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[3]</sup>, yes<sup>[4]</sup>
+Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[3]</sup>, yes<sup>[4]</sup>, yes<sup>[5]</sup>
 
 - [1],[3] [b](b.pdf)
 - [2]     [a chap2](a.html#chap2)
 - [4]     [a chap1](a.html#chap1)
+- [5]     [c](c.pdf)
 ```
 ---
-Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[3]</sup>, yes<sup>[4]</sup>
+Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[3]</sup>, yes<sup>[4]</sup>, yes<sup>[5]</sup>
 
 - [1],[3] [b](b.pdf)
 - [2]     [a chap2](a.html#chap2)
 - [4]     [a chap1](a.html#chap1)
+- [5]     [c](c.pdf)
 ---
 We identify fragments sharing the same URL to combine reference numbers and avoid 
 unreferenced documents.
@@ -110,18 +140,20 @@ The best solution is to adjust the reference numbers when they share the same UR
 This adjustment should be made during the LLM’s response generation to achieve the 
 following:
 ```markdown
-Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[1]</sup>, yes<sup>[4]</sup>
+Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[1]</sup>, yes<sup>[3]</sup>, yes<sup>[4]</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
 - [3] [a chap1](a.html#chap1)
+- [4] [c](c.pdf)
 ```
 ---
-Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[1]</sup>, yes<sup>[4]</sup>
+Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[1]</sup>, yes<sup>[3]</sup>, yes<sup>[4]</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
 - [3] [a chap1](a.html#chap1)
+- [4] [c](c.pdf)
 ---
 
 Note that the reference numbers have been adjusted. As a result, 
@@ -136,19 +168,21 @@ directly embedded in the references.
 
 ```markdown
 yes<sup>[[1](b.pdf)]</sup>, certainly<sup>[[2](a.html#chap2)]</sup>, 
-no<sup>[[1](b.pdf)]</sup>, yes<sup>[[3](a.html#chap1)]</sup>
+no<sup>[[1](b.pdf)]</sup>, yes<sup>[[3](a.html#chap1)]</sup>, yes<sup>[[4](...)]</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
 - [3] [a chap1](a.html#chap1)
+- [4] [c](c.pdf)
 ```
 ---
 yes<sup>[[1](b.pdf)]</sup>, certainly<sup>[[2](a.html#chap2)]</sup>, 
-no<sup>[[1](b.pdf)]</sup>, yes<sup>[[3](a.html#chap1)]</sup>
+no<sup>[[1](b.pdf)]</sup>, yes<sup>[[3](a.html#chap1)]</sup>, yes<sup>[[4](...)]</sup>
 
 - [1] [b](b.pdf)
 - [2] [a chap2](a.html#chap2)
 - [3] [a chap1](a.html#chap1)
+- [4] [c](c.pdf)
 ---
 
 ## Usage:
@@ -297,6 +331,10 @@ Markdown, but you can use:
 - `MarkdownReferenceStyle` : format markdown output
 - `HTMLReferenceStyle` : format html output
 
+You can use a class derived from `EmptyReferenceStyle` to trace the fragments used in 
+the response, without informing the user. This is useful for analyzing unsatisfactory 
+responses.
+
 You can adjust the style or how to retrieve the URL from the metadata.
 ```python
 from langchain_references import ReferenceStyle
@@ -324,7 +362,9 @@ class MyReferenceStyle(ReferenceStyle):
         return "\n\n" + "".join(result)
 ```
 ```python
-chain = context | manage_references(rag_prompt| model, style=MyReferenceStyle()) | StrOutputParser()
+chain = (context 
+         | manage_references(rag_prompt| model, style=MyReferenceStyle()) 
+         | StrOutputParser())
 ```
 
 ## How does it work?
