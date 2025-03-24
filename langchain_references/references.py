@@ -46,7 +46,7 @@ FORMAT_REFERENCES = (
 _MAX_WINDOWS_SIZE = 20
 
 # Some LLM return a reference like [NUMBER](id=3)
-# The number is not important, because we regenrate a new reference
+# The number is not important, because we regenerate a new reference
 _ids_pattern = re.compile(r" *(\[(?:\d+|NUMBER)]\(id=\d*\))")
 _id_pattern = re.compile(r"\[(?:\d+|NUMBER)]\(id=(\d*)\)")
 
@@ -189,7 +189,7 @@ def _analyse_doc_ids(
     style: ReferenceStyle,
     mediums: Sequence[BaseMedia],
 ) -> Dict[int, int]:
-    # Pour chaque doc, trouve un id de doc de référence
+    # For each doc, find the id of referenced document
     source_id_key_get = ReferenceStyle._get_key_assigner(style.source_id_key)
     seen: Dict = dict[str, int]()
     uniq_id_for_chunk = dict[int, int]()
@@ -210,8 +210,8 @@ def _patch_id(
     style: ReferenceStyle,
     medium: Sequence[BaseMedia],
 ) -> Generator[Tuple[str, int] | Dict[int, BaseMedia] | None, str | None, None]:
-    # Calcul un numéro unique pour chaque chunk
-    # afin de permettre l'injection d'une référence unique, dans l'ordre.
+    # Calculate a uniq id for each chunk
+    # in order to allow the injection of a single reference, in order.
     uniq_id_for_chunk = _analyse_doc_ids(style, medium)
     ids: Dict[int, BaseMedia] = {}
     last_ref = 0
