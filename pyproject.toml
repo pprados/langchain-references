@@ -15,6 +15,7 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
 langchain-core = ">=0.2.29"
+notebook = "^7.3.3"
 
 [tool.poetry.group.dev]
 optional = true
@@ -44,7 +45,7 @@ pytest-asyncio = "^0.20.3"
 pytest-mock = "^3.10.0"
 pytest-socket = "^0.6.0"
 syrupy = "^4.0.2"
-langchain_openai = "^0.1.7"
+langchain_openai = "^0.3"
 lark = "^1.1"
 
 [tool.poetry.group.lint]

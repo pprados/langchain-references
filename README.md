@@ -216,15 +216,21 @@ FORMAT_REFERENCES='When referencing the documents, add a citation right after.'
 ```
 And create a prompt:
 ```python
-prompt=ChatPromptTemplate.from_template(
-"""
-Here, the context: 
-{context}
+prompt=rag_prompt = ChatPromptTemplate.from_template(
+    """
+You are an assistant for question-answering tasks. Use the following pieces of retrieved documents to answer the question.
+If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
 
 {format_references}
 
-Question : {question}
-""")
+<documents>
+{context}
+</documents>
+
+Answer the following question:
+
+{question}""",
+    partial_variables={"format_references":FORMAT_REFERENCES})
 ```
 The context must be built up by adding a reference to each document.
 ```python
@@ -236,7 +242,6 @@ def format_docs(docs):
     )
 context = RunnablePassthrough.assign(
     context=lambda input: format_docs(input["documents"]),
-    format_references=lambda _: FORMAT_REFERENCES,
 )
 ```
 Then, thanks to `langchain-references`, to modify the tokens produced by the LLM.

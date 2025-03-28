@@ -36,10 +36,13 @@ from langchain_core.runnables import (
 
 logger = logging.getLogger(__name__)
 
+_PREFIX = "[<["  # Uses an unusual pattern
+_SUFFIX = "]>]"
 FORMAT_REFERENCES = (
-    "When referencing the documents, add a citation right after. "
-    'Use "[NUMBER](id=ID_NUMBER)" for the citation '
-    '(e.g. "The Space Needle is in Seattle [1](id=55)[2](id=12).").'
+    f"When referencing the documents, add a citation right after. "
+    f'Use "{_PREFIX}NUMBER{_SUFFIX}(id=ID_NUMBER)" for the citation '
+    f'(e.g. "The Space Needle is in Seattle '
+    f'{_PREFIX}1{_SUFFIX}(id=55){_PREFIX}2{_SUFFIX}(id=12).").'
 )
 
 # After this size, without reference, cancel the windows and wait a new '['
@@ -47,8 +50,12 @@ _MAX_WINDOWS_SIZE = 20
 
 # Some LLM return a reference like [NUMBER](id=3)
 # The number is not important, because we regenerate a new reference
-_ids_pattern = re.compile(r" *(\[(?:\d+|NUMBER)]\(id=\d*\))")
-_id_pattern = re.compile(r"\[(?:\d+|NUMBER)]\(id=(\d*)\)")
+_ids_pattern = re.compile(
+    rf" *({re.escape(_PREFIX)}(?:\d+|NUMBER){re.escape(_SUFFIX)}\(id=\d*\))"
+)
+_id_pattern = re.compile(
+    rf"{re.escape(_PREFIX)}(?:\d+|NUMBER){re.escape(_SUFFIX)}\(id=(\d*)\)"
+)
 
 
 # %% Different styles of references
@@ -297,8 +304,8 @@ def _manage_references(
                 text_fragment = message
             if wait:
                 windows_str += text_fragment
-                if "[" in cast(str, windows_str):
-                    pos = windows_str.find("[")
+                if _PREFIX in cast(str, windows_str):
+                    pos = windows_str.find(_PREFIX)
                     before = windows_str[:pos]
                     after = windows_str[pos:]
                     windows_str = after
@@ -318,7 +325,7 @@ def _manage_references(
                     if len(windows_str) > _MAX_WINDOWS_SIZE:
                         # Find [ without reference
                         # Try to return to wait state
-                        pos = windows_str.find("[", 1)
+                        pos = windows_str.find(_PREFIX, 1)
                         if pos > 0:
                             wait = True
                             result = AIMessageChunk(content=windows_str[:pos])
@@ -334,10 +341,10 @@ def _manage_references(
                     Tuple[str, int], patch_id.send(windows_str)
                 )
                 windows_str = windows_str[last:]
-                wait = "[" not in windows_str
+                wait = _PREFIX not in windows_str
                 result = AIMessageChunk(content=windows_patched)
             matched = None
-        ids = cast(Dict[int, BaseMedia], patch_id.send(None))
+        ids = cast(Dict[int, BaseMedia], patch_id.send(None))  # FIXME: send(None)
         yield AIMessageChunk(
             content=windows_str
             + style.format_all_references(
