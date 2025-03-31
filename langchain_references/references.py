@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 _PREFIX = "[<["  # Uses an unusual pattern
 _SUFFIX = "]>]"
+
 FORMAT_REFERENCES = (
     f"When referencing the documents, add a citation right after. "
     f'Use "{_PREFIX}NUMBER{_SUFFIX}(id=ID_NUMBER)" for the citation '
@@ -288,10 +289,9 @@ def _manage_references(
         windows_patched: str
         matched = None
         text_fragment = ""
+        message: str | BaseMessageChunk | None = None
         while True:
             message = yield result
-            if message is None:
-                break
             result = None
             if isinstance(message, BaseMessageChunk):
                 if isinstance(message.content, str):
@@ -300,6 +300,8 @@ def _manage_references(
                 #     token = "".join(message.content)
                 else:
                     raise ValueError(f"Invalid content type {type(message.content)}")
+            if message is None:
+                text_fragment = ""
             if isinstance(message, str):
                 text_fragment = message
             if wait:
@@ -316,16 +318,18 @@ def _manage_references(
                     else:
                         matched = _ids_pattern.search(windows_str)
                 else:
-                    windows_str = ""
-                    result = AIMessageChunk(content=text_fragment)
+                    if text_fragment:
+                        result = AIMessageChunk(content=text_fragment)
+                    else:
+                        result = None
             else:
                 windows_str += text_fragment
                 matched = _ids_pattern.search(windows_str)
                 if not matched:
                     if len(windows_str) > _MAX_WINDOWS_SIZE:
-                        # Find [ without reference
+                        # Find prefix without reference
                         # Try to return to wait state
-                        pos = windows_str.find(_PREFIX, 1)
+                        pos = windows_str.find(_PREFIX, len(_PREFIX))
                         if pos > 0:
                             wait = True
                             result = AIMessageChunk(content=windows_str[:pos])
@@ -344,6 +348,8 @@ def _manage_references(
                 wait = _PREFIX not in windows_str
                 result = AIMessageChunk(content=windows_patched)
             matched = None
+            if message is None:
+                break
         ids = cast(Dict[int, BaseMedia], patch_id.send(None))  # FIXME: send(None)
         yield AIMessageChunk(
             content=windows_str
@@ -369,13 +375,20 @@ def _update_references(
         medium = input["input"]["medium"]
         manage_references = _manage_references(style=style, medium=medium)
         manage_references.send(None)  # Start
+        chunk = None
         for token in runnable.stream(input["input"], config=config):
             # Inject the token in the FSM*
-            # print(f"<{token.content}>", end="")
-            x = manage_references.send(token)
-            if x:
-                yield x
-        yield manage_references.send(None)  # Stop
+            print(f"{token=}")
+            chunk = manage_references.send(token)
+            if chunk:
+                yield chunk
+        while chunk:
+            chunk = manage_references.send(AIMessageChunk(content=""))
+            if chunk:
+                yield chunk
+        chunk = manage_references.send(None)  # Stop
+        if chunk:
+            yield chunk
 
 
 async def _aupdate_references(

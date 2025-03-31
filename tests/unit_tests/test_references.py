@@ -1,5 +1,5 @@
-import warnings
 from typing import Any, Generator, Iterator, List, Optional, Tuple, cast
+from unittest.mock import patch
 
 from langchain_core.documents import Document
 from langchain_core.documents.base import BaseMedia
@@ -33,7 +33,10 @@ class _TestRunnable(Runnable[LanguageModelInput, LanguageModelOutput]):
         self.text_fragments = text_fragments
 
     def invoke(
-        self, input: LanguageModelInput, config: Optional[RunnableConfig] = None
+        self,
+        input: LanguageModelInput,
+        config: Optional[RunnableConfig] = None,
+        **kwargs: Any,
     ) -> LanguageModelOutput:
         raise NotImplementedError()
 
@@ -45,6 +48,23 @@ class _TestRunnable(Runnable[LanguageModelInput, LanguageModelOutput]):
     ) -> Iterator[LanguageModelOutput]:
         for text_fragment in self.text_fragments:
             yield text_fragment
+
+
+def collect_fragments(
+    text_fragments: List[str],
+    documents: List[Document],
+    style: ReferenceStyle = MarkdownReferenceStyle(),
+) -> str:
+    return "".join(
+        [
+            r.content  # type: ignore
+            for r in manage_references(
+                _TestRunnable(text_fragments=text_fragments), style=style
+            ).stream(
+                {"documents": documents}  # type: ignore
+            )
+        ]
+    )
 
 
 _four_documents = [
@@ -140,43 +160,27 @@ def test_split_token() -> None:
 
 def test_windows_large() -> None:
     assert (
-        "".join(
+        collect_fragments(
             [
-                r.content  # type: ignore
-                for r in manage_references(
-                    _TestRunnable(
-                        text_fragments=[
-                            f"Hello {_P}",
-                            "01234567890123456789",
-                            "\n",
-                        ]
-                    ),
-                    style=TestReferenceStyle(),
-                ).stream(
-                    {"documents": _two_documents}  # type: ignore
-                )
-            ]
+                f"Hello {_P}",
+                "01234567890123456789",
+                "\n",
+            ],
+            _two_documents,
+            TestReferenceStyle(),
         )
         == f"Hello {_P}01234567890123456789\n"
     )
 
     assert (
-        "".join(
+        collect_fragments(
             [
-                r.content  # type: ignore
-                for r in manage_references(
-                    _TestRunnable(
-                        text_fragments=[
-                            f"Hello {_P}",
-                            f"0123456789012345678{_P}",
-                            f"1{_S}(id=1)\n",
-                        ]
-                    ),
-                    style=TestReferenceStyle(),
-                ).stream(
-                    {"documents": _two_documents}  # type: ignore
-                )
-            ]
+                f"Hello {_P}",
+                f"0123456789012345678{_P}",
+                f"1{_S}(id=1)\n",
+            ],
+            _two_documents,
+            TestReferenceStyle(),
         )
         == f"Hello {_P}0123456789012345678[1](a.html#chap1)\n"
         "\n"
@@ -184,22 +188,14 @@ def test_windows_large() -> None:
     )
 
     assert (
-        "".join(
+        collect_fragments(
             [
-                r.content  # type: ignore
-                for r in manage_references(
-                    _TestRunnable(
-                        text_fragments=[
-                            f"Hello {_P}",
-                            f"01234567890123456{_P}1{_S}",
-                            "(id=1)\n",
-                        ]
-                    ),
-                    style=TestReferenceStyle(),
-                ).stream(
-                    {"documents": _two_documents}  # type: ignore
-                )
-            ]
+                f"Hello {_P}",
+                f"01234567890123456{_P}1{_S}",
+                "(id=1)\n",
+            ],
+            _two_documents,
+            TestReferenceStyle(),
         )
         == f"Hello {_P}01234567890123456[1](a.html#chap1)\n"
         "\n"
@@ -207,22 +203,14 @@ def test_windows_large() -> None:
     )
 
     assert (
-        "".join(
+        collect_fragments(
             [
-                r.content  # type: ignore
-                for r in manage_references(
-                    _TestRunnable(
-                        text_fragments=[
-                            f"Hello {_P}",
-                            f"01234567890123456{_P}1{_S}",
-                            "(id=1)\n",
-                        ]
-                    ),
-                    style=TestReferenceStyle(),
-                ).stream(
-                    {"documents": _two_documents}  # type: ignore
-                )
-            ]
+                f"Hello {_P}",
+                f"01234567890123456{_P}1{_S}",
+                "(id=1)\n",
+            ],
+            _two_documents,
+            TestReferenceStyle(),
         )
         == f"Hello {_P}01234567890123456[1](a.html#chap1)\n"
         "\n"
@@ -257,7 +245,8 @@ def test_manage_complex_scenario() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), no{_P}3{_S}(id=4), yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), no{_P}3{_S}(id=4), "
+            f"yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
         )
         == "yes"
     )
@@ -278,44 +267,28 @@ def test_manage_complex_scenario() -> None:
 
 def test_manage_fake_pattern() -> None:
     assert (
-        "".join(
+        collect_fragments(
             [
-                r.content  # type: ignore
-                for r in manage_references(
-                    _TestRunnable(
-                        text_fragments=[
-                            f"read page « {_P}foo{_S}(https://www.foo.org) »",
-                        ]
-                    ),
-                ).stream(
-                    {"documents": []}  # type: ignore
-                )
-            ]
+                f"read page « {_P}foo{_S}(https://www.foo.org) »",
+            ],
+            _two_documents,
         )
         == f"read page « {_P}foo{_S}(https://www.foo.org) »"
     )
 
 
-def test_manage_invalid_reference() -> None:
-    with warnings.catch_warnings(record=True) as w:
-        assert (
-            "".join(
-                [
-                    r.content  # type: ignore
-                    for r in manage_references(
-                        _TestRunnable(
-                            text_fragments=[
-                                f"before {_P}1{_S}(id=99) after",
-                            ]
-                        ),
-                    ).stream(
-                        {"documents": []}  # type: ignore
-                    )
-                ]
-            )
-            == f"before {_P}1{_S}(id=99) after"
+@patch("langchain_references.references.logger")
+def test_manage_invalid_reference(mock_logging: Any) -> None:
+    assert (
+        collect_fragments(
+            [
+                f"before {_P}1{_S}(id=99) after",
+            ],
+            [],
         )
-    assert len(w) == 1
+        == "before  after"
+    )
+    assert mock_logging.warning.call_count == 1
 
 
 def test_NUMBER() -> None:
@@ -325,7 +298,7 @@ def test_NUMBER() -> None:
 
     _send(manage_references, None)
     _send(manage_references, f"{_P}NUMBER{_S}(id=1)") == "[1](a.html#chap1)"
-    assert _send(manage_references, "") == ""
+    assert _send(manage_references, "") is None
 
 
 def test_style_empty() -> None:
@@ -350,7 +323,8 @@ def test_style_empty() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), no{_P}3{_S}(id=4), yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), no{_P}3{_S}(id=4), "
+            f"yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
         )
         == "yes"
     )
