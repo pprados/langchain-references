@@ -70,7 +70,7 @@ class ReferenceStyle:
 
     @staticmethod
     def _get_key_assigner(
-        source_id_key: str | Callable[[BaseMedia], Any],
+        source_id_key: Union[str, Callable[[BaseMedia], Any]],
     ) -> Callable[[BaseMedia], Any]:
         """Get the source id from the document."""
         if isinstance(source_id_key, str):
@@ -318,10 +318,11 @@ def _manage_references(
                     else:
                         matched = _ids_pattern.search(windows_str)
                 else:
+                    result = None
                     if text_fragment:
-                        result = AIMessageChunk(content=text_fragment)
-                    else:
-                        result = None
+                        if len(windows_str) > len(_PREFIX):
+                            result = AIMessageChunk(content=windows_str[:-len(_PREFIX)])
+                            windows_str=windows_str[-len(_PREFIX):]
             else:
                 windows_str += text_fragment
                 matched = _ids_pattern.search(windows_str)
@@ -378,7 +379,6 @@ def _update_references(
         chunk = None
         for token in runnable.stream(input["input"], config=config):
             # Inject the token in the FSM*
-            print(f"{token=}")
             chunk = manage_references.send(token)
             if chunk:
                 yield chunk
