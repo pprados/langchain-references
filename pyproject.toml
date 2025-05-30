@@ -15,12 +15,12 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
 langchain-core = ">=0.2.29"
-notebook = "^7.3.3"
 
 [tool.poetry.group.dev]
 optional = true
 
 [tool.poetry.group.dev.dependencies]
+notebook = "^7.3.3"
 playwright = "^1.28.0"
 setuptools = "^67.6.1"
 ipython = "*"
