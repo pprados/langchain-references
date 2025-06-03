@@ -253,7 +253,7 @@ def _patch_id(
             else:
                 # I already refer to this document, use the same reference
                 new_ref = new_reference_number[uniq_id]
-            # FIXME: peut pointer sur un autre doc, mais sur la même URL
+            # FIXME: reference another doc, with the same URL
             # if (new_ref in ids) and ids[new_ref] != media:
             #     logger.warning(f"LLM generated the same reference [{llm_ref}] twice.")
             #     last = m.end()
@@ -296,8 +296,6 @@ def _manage_references(
             if isinstance(message, BaseMessageChunk):
                 if isinstance(message.content, str):
                     text_fragment = message.content
-                # elif isinstance(message.content, list):  # PPR list[Dict]
-                #     token = "".join(message.content)
                 else:
                     raise ValueError(f"Invalid content type {type(message.content)}")
             if message is None:
@@ -321,8 +319,10 @@ def _manage_references(
                     result = None
                     if text_fragment:
                         if len(windows_str) > len(_PREFIX):
-                            result = AIMessageChunk(content=windows_str[:-len(_PREFIX)])
-                            windows_str=windows_str[-len(_PREFIX):]
+                            result = AIMessageChunk(
+                                content=windows_str[: -len(_PREFIX)]
+                            )
+                            windows_str = windows_str[-len(_PREFIX) :]
             else:
                 windows_str += text_fragment
                 matched = _ids_pattern.search(windows_str)
@@ -351,7 +351,7 @@ def _manage_references(
             matched = None
             if message is None:
                 break
-        ids = cast(Dict[int, BaseMedia], patch_id.send(None))  # FIXME: send(None)
+        ids = cast(Dict[int, BaseMedia], patch_id.send(None))
         yield AIMessageChunk(
             content=windows_str
             + style.format_all_references(
