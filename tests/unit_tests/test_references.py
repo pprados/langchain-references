@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Generator, Iterator, List, Optional, Tuple, cast
+from typing import Any, Callable, Generator, Iterator, List, Optional, Tuple, cast
 from unittest.mock import patch
 
 from langchain_core.documents import Document
@@ -136,10 +136,7 @@ def test_single_token() -> None:
     )
 
     _send(manage_references, None)  # Start generator
-    assert (
-        _send(manage_references, f"Hello {_P}1{_S}(id=1) world  " f"{_P}2{_S}(id=2)")
-        == "Hello "
-    )
+    assert _send(manage_references, f"Hello {_P}1{_S} world  " f"{_P}2{_S}") == "Hello "
     assert _send(manage_references, "") == "[1](a.html#chap1) world[2](a.html#chap2)"
     assert (
         _send(manage_references, None) == "\n"
@@ -155,8 +152,8 @@ def test_split_token() -> None:
 
     _send(manage_references, None)
     assert _send(manage_references, f"Hello {_P}") == "Hello "
-    assert _send(manage_references, f"1{_S}(id=") is None
-    assert _send(manage_references, "1)") == "[1](a.html#chap1)"
+    assert _send(manage_references, "1") is None
+    assert _send(manage_references, f"{_S}") == "[1](a.html#chap1)"
     assert _send(manage_references, None) == "\n- 1 [doc1](a.html#chap1#1)\n"
 
 
@@ -179,13 +176,12 @@ def test_windows_large() -> None:
             [
                 f"Hello {_P}",
                 f"0123456789012345678{_P}",
-                f"1{_S}(id=1)\n",
+                f"1{_S}\n",
             ],
             _two_documents,
             TestReferenceStyle(),
         )
-        == f"Hello {_P}0123456789012345678[1](a.html#chap1)\n"
-        "\n"
+        == f"Hello {_P}0123456789012345678[1](a.html#chap1)\n\n"
         "- 1 [doc1](a.html#chap1#1)\n"
     )
 
@@ -194,13 +190,11 @@ def test_windows_large() -> None:
             [
                 f"Hello {_P}",
                 f"01234567890123456{_P}1{_S}",
-                "(id=1)\n",
             ],
             _two_documents,
             TestReferenceStyle(),
         )
         == f"Hello {_P}01234567890123456[1](a.html#chap1)\n"
-        "\n"
         "- 1 [doc1](a.html#chap1#1)\n"
     )
 
@@ -209,13 +203,11 @@ def test_windows_large() -> None:
             [
                 f"Hello {_P}",
                 f"01234567890123456{_P}1{_S}",
-                "(id=1)\n",
             ],
             _two_documents,
             TestReferenceStyle(),
         )
         == f"Hello {_P}01234567890123456[1](a.html#chap1)\n"
-        "\n"
         "- 1 [doc1](a.html#chap1#1)\n"
     )
 
@@ -229,7 +221,7 @@ def test_windows_not_empty_at_end() -> None:
     _send(manage_references, None)
     assert _send(manage_references, f"Hello {_P}") == "Hello "
     assert (
-        _send(manage_references, f"{_P}1{_S}(id=1)" f"{_P}2{_S}(id=2)" f"1234567890")
+        _send(manage_references, f"{_P}1{_S}" f"{_P}2{_S}" f"1234567890")
         == f"{_P}[1](a.html#chap1)[2](a.html#chap2)"
     )
     assert (
@@ -247,23 +239,24 @@ def test_manage_complex_scenario() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), no{_P}3{_S}(id=4), "
-            f"yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}1{_S}, maybe{_P}2{_S}, no{_P}3{_S}, "
+            f"yes{_P}4{_S}, error{_P}5{_S}",
         )
         == "yes"
     )
     assert (
-        _send(manage_references, "") == "[1](b.pdf), "
+        _send(manage_references, "") == "[1](a.html#chap1), "
         "maybe[2](a.html#chap2), "
-        "no[1](b.pdf), "
-        "yes[3](a.html#chap1), "
-        "error"
+        "no[3](b.pdf), "
+        "yes[3](b.pdf), "
+        "error[4](c.csv)"
     )
     assert (
         _send(manage_references, None) == "\n"
-        "- 1 [doc4](b.pdf#4)\n"
+        "- 1 [doc1](a.html#chap1#1)\n"
         "- 2 [doc2](a.html#chap2#2)\n"
-        "- 3 [doc1](a.html#chap1#1)\n"
+        "- 3 [doc4](b.pdf#4)\n"
+        "- 4 [doc5](c.csv#5)\n"
     )
 
 
@@ -284,7 +277,7 @@ def test_manage_invalid_reference(mock_logging: Any) -> None:
     assert (
         collect_fragments(
             [
-                f"before {_P}1{_S}(id=99) after",
+                f"before {_P}99{_S} after",
             ],
             [],
         )
@@ -299,8 +292,8 @@ def test_NUMBER() -> None:
     )
 
     _send(manage_references, None)
-    _send(manage_references, f"{_P}NUMBER{_S}(id=1)") == "[1](a.html#chap1)"
-    assert _send(manage_references, "") is None
+    _send(manage_references, f"{_P}NUMBER{_S}") == ""
+    assert _send(manage_references, "") == ""
 
 
 def test_style_empty() -> None:
@@ -325,8 +318,8 @@ def test_style_empty() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), no{_P}3{_S}(id=4), "
-            f"yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, no{_P}4{_S}, "
+            f"yes{_P}1{_S}, error{_P}10{_S}",
         )
         == "yes"
     )
@@ -340,8 +333,8 @@ def test_style_empty() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), "
-            f"no{_P}3{_S}(id=4), yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, "
+            f"no{_P}4{_S}, yes{_P}1{_S}, error{_P}10{_S}",
         )
         == "yes"
     )
@@ -369,8 +362,8 @@ def test_style_text() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), "
-            f"no{_P}3{_S}(id=4), yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, "
+            f"no{_P}4{_S}, yes{_P}1{_S}, error{_P}10{_S}",
         )
         == "yes"
     )
@@ -388,8 +381,8 @@ def test_style_text() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), "
-            f"no{_P}3{_S}(id=4), yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, "
+            f"no{_P}4{_S}, yes{_P}1{_S}, error{_P}10{_S}",
         )
         == "yes"
     )
@@ -397,7 +390,7 @@ def test_style_text() -> None:
     assert _send(manage_references, None) == "\n\n" "- [1] source2\n" "- [2] source1\n"
 
 
-def test_style_markdown() -> None:
+def test_style_markdown_compatible() -> None:
     documents: List[BaseMedia] = [
         Document(
             page_content="doc1",
@@ -411,7 +404,7 @@ def test_style_markdown() -> None:
         ),
     ]
     manage_references = _manage_references(
-        style=MarkdownReferenceStyle(), medium=documents
+        style=MarkdownReferenceStyle(foot_note_compatibe=True), medium=documents
     )
 
     # Test with title
@@ -419,19 +412,16 @@ def test_style_markdown() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), "
-            f"no{_P}3{_S}(id=4), yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, "
+            f"no{_P}4{_S}, yes{_P}1{_S}, error{_P}10{_S}",
         )
         == "yes"
     )
-    assert (
-        _send(manage_references, "")
-        == ", maybe<sup>[[1](source2)]</sup>, no, yes<sup>[[2](source1)]</sup>, error"
-    )
+    assert _send(manage_references, "") == ", maybe[^1], no, yes[^2], error"
     assert (
         _send(manage_references, None) == "\n\n"
-        "- **1** [title2](source2)\n"
-        "- **2** [title1](source1)\n"
+        "[^1]: [title2](source2)\n"
+        "[^2]: [title1](source1)\n"
     )
 
     # Test without title
@@ -441,19 +431,78 @@ def test_style_markdown() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), "
-            f"no{_P}3{_S}(id=4), yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, "
+            f"no{_P}4{_S}, yes{_P}1{_S}, error{_P}10{_S}",
+        )
+        == "yes"
+    )
+    assert _send(manage_references, "") == ", maybe[^1], no, yes[^2], error"
+    assert _send(manage_references, None) == "\n\n" "[^1]: source2\n" "[^2]: source1\n"
+
+
+def test_style_markdown_not_compatible() -> None:
+    documents: List[BaseMedia] = [
+        Document(
+            page_content="doc1",
+            id="1",
+            metadata={"source": "source1", "row": 1, "title": "title1"},
+        ),
+        Document(
+            page_content="doc2",
+            id="2",
+            metadata={"source": "source2", "row": 2, "title": "title2"},
+        ),
+    ]
+    manage_references = _manage_references(
+        style=MarkdownReferenceStyle(foot_note_compatibe=False), medium=documents
+    )
+
+    # Test with title
+    _send(manage_references, None)
+    assert (
+        _send(
+            manage_references,
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, "
+            f"no{_P}4{_S}, yes{_P}1{_S}, error{_P}10{_S}",
         )
         == "yes"
     )
     assert (
-        _send(manage_references, "")
-        == ", maybe<sup>[[1](source2)]</sup>, no, yes<sup>[[2](source1)]</sup>, error"
+        _send(manage_references, "") == ", "
+        'maybe<a href="#fn1" id="1">[1]</a></sup>, '
+        'no, yes<a href="#fn2" id="2">[2]</a></sup>, '
+        "error"
     )
     assert (
         _send(manage_references, None) == "\n\n"
-        "- **1** <source2>\n"
-        "- **2** <source1>\n"
+        '<sup id="fn1" style="font-size: 0.7em;">1.</a> '
+        "[title2](source2)</sup></small>  \n"
+        '<sup id="fn2" style="font-size: 0.7em;">2.</a> '
+        "[title1](source1)</sup></small>  \n"
+    )
+
+    # Test without title
+    documents[0].metadata.pop("title")
+    documents[1].metadata.pop("title")
+    _send(manage_references, None)
+    assert (
+        _send(
+            manage_references,
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, "
+            f"no{_P}4{_S}, yes{_P}1{_S}, error{_P}10{_S}",
+        )
+        == "yes"
+    )
+    assert (
+        _send(manage_references, "") == ', maybe<a href="#fn1" id="1">[1]</a></sup>, '
+        "no, "
+        'yes<a href="#fn2" id="2">[2]</a></sup>, '
+        "error"
+    )
+    assert (
+        _send(manage_references, None) == "\n\n"
+        '<sup id="fn1" style="font-size: 0.7em;">1.</a> source2</sup>  \n'
+        '<sup id="fn2" style="font-size: 0.7em;">2.</a> source1</sup>  \n'
     )
 
 
@@ -477,8 +526,8 @@ def test_style_html() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), "
-            f"no{_P}3{_S}(id=4), yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, "
+            f"no{_P}4{_S}, yes{_P}1{_S}, error{_P}10{_S}",
         )
         == "yes"
     )
@@ -499,8 +548,8 @@ def test_style_html() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), "
-            f"no{_P}3{_S}(id=4), yes{_P}4{_S}(id=1), error{_P}5{_S}(id=10)",
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, "
+            f"no{_P}4{_S}, yes{_P}1{_S}, error{_P}10{_S}",
         )
         == "yes"
     )
@@ -523,7 +572,7 @@ def test_my_style() -> None:
         return media.metadata["source"]
 
     class MyReferenceStyle(ReferenceStyle):
-        source_id_key = my_source
+        source_id_key: Callable[[BaseMedia], str] = my_source
 
         def format_reference(self, ref: int, media: BaseMedia) -> Optional[str]:
             get_total_pages = self._get_key_assigner(self.total_pages_key)
@@ -567,9 +616,9 @@ def test_my_style() -> None:
     assert (
         _send(
             manage_references,
-            f"yes{_P}1{_S}(id=3), maybe{_P}2{_S}(id=2), "
-            f"no{_P}3{_S}(id=4), yes{_P}4{_S}(id=1), remove{_P}5{_S}(id=3), "
-            f"error{_P}5{_S}(id=10)",
+            f"yes{_P}3{_S}, maybe{_P}2{_S}, "
+            f"no{_P}4{_S}, yes{_P}1{_S}, remove{_P}3{_S}, "
+            f"error{_P}10{_S}",
         )
         == "yes"
     )

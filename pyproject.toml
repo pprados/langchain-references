@@ -1,78 +1,76 @@
-[tool.poetry]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
 name = "langchain-references"
 version = "0.0.0"  # Set with git tag
 description = "Component to manager referenced documents with LLM."
-authors = ["Philippe PRADOS"]
-license = "Apache 2.0"
+authors = [
+    { name = "Philippe PRADOS", email = "" }
+]
+license = { text = "Apache-2.0" }
 readme = "README.md"
-repository = "https://www.github.com/pprados/langchain-references"
-homepage = "https://www.github.com/pprados/langchain-references"
-packages = [
-  { include = "langchain_references" },
+requires-python = ">=3.9,<4.0"
+dependencies = [
+    "langchain-core>=0.2.29",
 ]
 
+[project.urls]
+Homepage = "https://www.github.com/pprados/langchain-references"
+Repository = "https://www.github.com/pprados/langchain-references"
 
-[tool.poetry.dependencies]
-python = ">=3.9,<4.0"
-langchain-core = ">=0.2.29"
+[dependency-groups]
+dev = [
+    "notebook>=7.3.3",
+    "playwright>=1.28.0",
+    "setuptools>=67.6.1",
+    "ipython",
+    "ipykernel",
+    "jupyter>=1.0",
+    "jupyterlab-rise>=0.42",
+    "pre-commit>=3.6",
+    "twine>=5.1.0",
+    "importlib-metadata==7.2.1",
+    "pip>=25.3",
+]
 
-[tool.poetry.group.dev]
-optional = true
+test = [
+    "pytest>=7.3.0",
+    "pytest-cov>=4.0.0",
+    "pytest-dotenv>=0.5.2",
+    "pytest-watcher>=0.2.6",
+    "freezegun>=1.2.2",
+    "responses>=0.22.0",
+    "pytest-asyncio>=0.20.3",
+    "pytest-mock>=3.10.0",
+    "pytest-socket>=0.6.0",
+    "syrupy>=4.0.2",
+    "langchain-openai>=0.3",
+    "lark>=1.1",
+]
 
-[tool.poetry.group.dev.dependencies]
-notebook = "^7.3.3"
-playwright = "^1.28.0"
-setuptools = "^67.6.1"
-ipython = "*"
-ipykernel = "*"
-jupyter = "^1.0"
-jupyterlab_rise = "^0.42"
-pre-commit = "^3.6"
-twine = "^5.1.0"
-importlib-metadata = "7.2.1"
+lint = [
+    "mypy>=1.8",
+    "ruff>=0.1.9",
+    "types-toml>=0.10.8.1",
+    "types-redis>=4.3.21.6",
+    "types-pytz>=2023.3.0.0",
+    "black[jupiter]>=23.1.0",
+    "types-chardet>=5.0.4.6",
+    "mypy-protobuf>=3.0.0",
+    "types-google-cloud-ndb>=2.0",
+    "types-docutils>=0.20",
+    "types-pyyaml>=6.0.12.2",
+    "types-requests>=2.28.11.5",
+]
 
-[tool.poetry.group.test.dependencies]
-# The only dependencies that should be added are
-# dependencies used for running tests (e.g., pytest, freezegun, response).
-# Any dependencies that do not meet that criteria will be removed.
-pytest = "^7.3.0"
-pytest-cov = "^4.0.0"
-pytest-dotenv = "^0.5.2"
-pytest-watcher = "^0.2.6"
-freezegun = "^1.2.2"
-responses = "^0.22.0"
-pytest-asyncio = "^0.20.3"
-pytest-mock = "^3.10.0"
-pytest-socket = "^0.6.0"
-syrupy = "^4.0.2"
-langchain_openai = "^0.3"
-lark = "^1.1"
-
-[tool.poetry.group.lint]
-optional = true
-
-[tool.poetry.group.lint.dependencies]
-mypy = "^1.8"
-ruff = "^0.1.9"
-types-toml = "^0.10.8.1"
-types-redis = "^4.3.21.6"
-types-pytz = "^2023.3.0.0"
-black = { version = "^23.1.0", extras = ["jupiter"] }
-types-chardet = "^5.0.4.6"
-mypy-protobuf = "^3.0.0"
-types-google-cloud-ndb = "^2.0"
-types-docutils = "^0.20"
-types-pyyaml = "^6.0.12.2"
-types-requests = "^2.28.11.5"
-
-[tool.poetry.group.codespell]
-optional = true
-
-[tool.poetry.group.codespell.dependencies]
-codespell = "^2.2.5"
+codespell = [
+    "codespell>=2.2.5",
+]
 
 [tool.codespell]
-skip = '.git,*.pdf,*.svg,*.pdf,*.yaml,*.ipynb,poetry.lock,*.min.js,*.css,package-lock.json,example_data,_dist,examples'
+skip = '.git,*.pdf,*.svg,*.pdf,*.yaml,*.ipynb,uv.lock,*.min.js,*.css,package-lock.json,example_data,_dist,examples'
 # Ignore latin etc
 ignore-regex = '.*(Stati Uniti|Tense=Pres).*'
 # whats is a typo but used frequently in queries so kept as is
@@ -115,9 +113,3 @@ markers = [
   "compile: mark placeholder test used to compile integration tests without running them"
 ]
 asyncio_mode = "auto"
-
-
-
-[tool.poetry-git-version-plugin]
-make_alpha_version = true
-alpha_version_format = '{version}a{distance}+{commit_hash}'

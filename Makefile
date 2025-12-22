@@ -1,7 +1,5 @@
 SHELL=/bin/bash
 .PHONY: all format lint test tests test_watch integration_tests docker_tests help extended_tests
-POETRY_EXTRA?=--all-extras
-POETRY_WITH?=dev,lint,test,codespell
 
 # Default target executed when no arguments are given to make.
 all: help
@@ -10,13 +8,13 @@ all: help
 TEST_FILE ?= tests/unit_tests/
 
 integration_tests:
-	poetry run pytest tests/integration_tests
+	uv run pytest tests/integration_tests
 
 test tests:
-	poetry run pytest -v $(TEST_FILE)
+	uv run pytest -v $(TEST_FILE)
 
 test_watch:
-	poetry run ptw --now . -- tests/unit_tests
+	uv run ptw --now . -- tests/unit_tests
 
 
 ######################
@@ -29,19 +27,19 @@ lint format: PYTHON_FILES=.
 lint_diff format_diff: PYTHON_FILES=$(shell git diff --relative=libs/experimental --name-only --diff-filter=d master | grep -E '\.py$$|\.ipynb$$')
 
 lint lint_diff:
-	poetry run mypy $(PYTHON_FILES)
-	poetry run black $(PYTHON_FILES) --check
-	poetry run ruff .
+	uv run mypy $(PYTHON_FILES)
+	uv run black $(PYTHON_FILES) --check
+	uv run ruff check .
 
 format format_diff:
-	poetry run black $(PYTHON_FILES)
-	poetry run ruff --select I --fix $(PYTHON_FILES)
+	uv run black $(PYTHON_FILES)
+	uv run ruff check --select I --fix $(PYTHON_FILES)
 
 spell_check:
-	poetry run codespell --toml pyproject.toml
+	uv run codespell --toml pyproject.toml
 
 spell_fix:
-	poetry run codespell --toml pyproject.toml -w
+	uv run codespell --toml pyproject.toml -w
 
 
 ######################
@@ -59,19 +57,19 @@ docs_clean:
 	rm -rf docs/_dist
 
 docs_linkcheck:
-	poetry run linkchecker docs/_dist/docs_skeleton/ --ignore-url node_modules
+	uv run linkchecker docs/_dist/docs_skeleton/ --ignore-url node_modules
 
 api_docs_build:
-#	poetry run python docs/api_reference/create_api_rst.py
-#	cd docs/api_reference && poetry run make html
+#	uv run python docs/api_reference/create_api_rst.py
+#	cd docs/api_reference && uv run make html
 
 api_docs_clean:
 #	rm -f docs/api_reference/api_reference.rst
-#	cd docs/api_reference && poetry run make clean
+#	cd docs/api_reference && uv run make clean
 
 
 api_docs_linkcheck:
-	poetry run linkchecker docs/api_reference/_build/html/index.html
+	uv run linkchecker docs/api_reference/_build/html/index.html
 
 ######################
 # HELP
@@ -98,7 +96,7 @@ help:
 
 .PHONY: dist
 dist:
-	poetry build
+	uv build
 
 # ---------------------------------------------------------------------------------------
 # SNIPPET pour tester la publication d'une distribution
@@ -196,32 +194,27 @@ push-sync:
 #	find . -type f -name '*.ipynb' | xargs sed -i 's/langchain\([_-]\)experimental/langchain\1qa_with_references/g'
 
 
-poetry.lock: pyproject.toml
-	poetry lock
-	git add poetry.lock
-	poetry install $(POETRY_EXTRA) --with $(POETRY_WITH)
+uv.lock: pyproject.toml
+	uv lock
+	git add uv.lock
+	uv sync --all-groups
 
 
 ## Refresh lock
-lock: poetry.lock
+lock: uv.lock
 
 ## Start jupyter
 jupyter:
-	poetry run jupyter lab
+	uv run jupyter lab
 
 demo.py: docs/integrations/vectorstores/rag_vectorstore.ipynb
 	jupyter nbconvert --to python $< --output $(PWD)/$@
 
 ## Validate the code
-validate: poetry.lock format lint spell_check test
+validate: uv.lock format lint spell_check test
 
 
-init: poetry.lock
-	@poetry self update
-	@poetry self add poetry-dotenv-plugin
-	@poetry self add poetry-plugin-export
-	@poetry self add poetry-git-version-plugin
-	@poetry config virtualenvs.in-project true
-	@poetry install --sync $(POETRY_EXTRA) --with $(POETRY_WITH)
+init: uv.lock
+	@uv sync --all-groups
 	@#pre-commit install
 	@git lfs install

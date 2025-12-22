@@ -21,8 +21,8 @@ mathematical  problems, often requiring proof or detailed solutions
 while competitions test and challenge mathematical understanding and problem-solving 
 abilities..
 
-- **1** [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
-- **2** [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
+1. [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
+2. [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
 ---
 
 
@@ -72,7 +72,7 @@ generate a response, the references should be formatted as footnotes, reflecting
 the different sources. For example, the LLM answers several questions using the 
 referenced fragments:
 ```markdown
-Yes[1](id=3), certainly[2](id=2), no[3](id=4), yes[4](id=1), yes[5](id=5)
+Yes【3†source】, certainly【2†source】, no【4†source】, yes【1†source】, yes【5†source】
 ```
 In this situation, the first five fragments are used, but not the last one. 
 The first two have different URLs, even though they come from the same document. 
@@ -82,8 +82,9 @@ a 200-page document, which doesn't help the user.
 The naive approach is to list all the injected documents after the response and, 
 if possible, extract a specific title for each fragment.  
 ```markdown
-Yes, certainly, no, yes
 
+Yes, certainly, no, yes
+---
 1. [a chap1](a.html#chap1)
 2. [a chap2](a.html#chap2)
 3. [b frag1](b.pdf)
@@ -93,7 +94,7 @@ Yes, certainly, no, yes
 ```
 ---
 Yes, certainly, no, yes
-
+---
 1. [a chap1](a.html#chap1)
 2. [a chap2](a.html#chap2)
 3. [b frag1](b.pdf)
@@ -117,13 +118,13 @@ the list of references, as it provides no useful information. It is not used by
 LLM to produce the answer. 
 
 What should be produced is closer to this:
-```markdown
-Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[3]</sup>, yes<sup>[4]</sup>, yes<sup>[5]</sup>
+```
+Yes[^1], certainly[^2], no[^3], yes[^4], yes[^5]
 
-- [1],[3] [b](b.pdf)
-- [2]     [a chap2](a.html#chap2)
-- [4]     [a chap1](a.html#chap1)
-- [5]     [c](c.pdf)
+[^1][^3]: [b](b.pdf)
+[^2]:     [a chap2](a.html#chap2)
+[^4]:     [a chap1](a.html#chap1)
+[^5]:     [c](c.pdf)
 ```
 ---
 Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[3]</sup>, yes<sup>[4]</sup>, yes<sup>[5]</sup>
@@ -134,18 +135,18 @@ Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[3]</sup>, yes<sup>[4]</sup>,
 - [5]     [c](c.pdf)
 ---
 We identify fragments sharing the same URL to combine reference numbers and avoid 
-unreferenced documents.
+unreferenced documents. But it's not possible with markdown footnotes.
 
 The best solution is to adjust the reference numbers when they share the same URL. 
 This adjustment should be made during the LLM’s response generation to achieve the 
 following:
-```markdown
-Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[1]</sup>, yes<sup>[3]</sup>, yes<sup>[4]</sup>
+```
+Yes[^1], certainly[^2], no[^1], yes[^3], yes[^4]
 
-- [1] [b](b.pdf)
-- [2] [a chap2](a.html#chap2)
-- [3] [a chap1](a.html#chap1)
-- [4] [c](c.pdf)
+[^1]: [b](b.pdf)
+[^2]: [a chap2](a.html#chap2)
+[^3]: [a chap1](a.html#chap1)
+[^4]: [c](c.pdf)
 ```
 ---
 Yes<sup>[1]</sup>, certainly<sup>[2]</sup>, no<sup>[1]</sup>, yes<sup>[3]</sup>, yes<sup>[4]</sup>
@@ -166,14 +167,14 @@ it of this responsibility and implement deterministic code capable of consistent
 performing the necessary calculations and adjustments. In the process, links can be 
 directly embedded in the references.
 
-```markdown
-yes<sup>[[1](b.pdf)]</sup>, certainly<sup>[[2](a.html#chap2)]</sup>, 
-no<sup>[[1](b.pdf)]</sup>, yes<sup>[[3](a.html#chap1)]</sup>, yes<sup>[[4](...)]</sup>
+```
+yes[^1], certainly[^2], 
+no[^1], yes[^3], yes[^4]
 
-- [1] [b](b.pdf)
-- [2] [a chap2](a.html#chap2)
-- [3] [a chap1](a.html#chap1)
-- [4] [c](c.pdf)
+[^1]: [b](b.pdf)
+[^2]: [a chap2](a.html#chap2)
+[^3]: [a chap1](a.html#chap1)
+[^4]: [c](c.pdf)
 ```
 ---
 yes<sup>[[1](b.pdf)]</sup>, certainly<sup>[[2](a.html#chap2)]</sup>, 
@@ -199,7 +200,7 @@ to add an identifier (the position of each document in the list), so that LLM ca
 respond with the unique number of the injected document. In this way, it is possible 
 to retrieve each original document and use the metadata to build a URL, for example. 
 The following prompt asks LLM to handle references simply, in the form : 
-`[<number_of_reference>](id=<index_of_fragment>)`.
+`【<number_of_reference>†source】` (the format is the same use by OpenAI for a post traitements)
 
 ### Chain without retriever
 To use a chain without a retriever, you need to apply some similar steps.
@@ -264,26 +265,26 @@ The response from the LLM will be:
 ```text
 Mathematical games are structured activities defined by clear mathematical parameters, 
 focusing on strategy and skills without requiring deep mathematical knowledge, such as 
-tic-tac-toe or chess [1](id=1). In contrast, mathematics competitions, like the 
+tic-tac-toe or chess 【1†source】. In contrast, mathematics competitions, like the 
 International Mathematical Olympiad, involve participants solving complex mathematical 
-problems, often requiring proof or detailed solutions [2](id=2). Essentially, games 
+problems, often requiring proof or detailed solutions 【2†source】. Essentially, games 
 are for enjoyment and skill development, while competitions test and challenge 
 mathematical understanding and problem-solving abilities.'
 ```
 
 The response with `manage_reference()` will be:
-```markdown
+```
 Mathematical games are structured activities defined by clear mathematical parameters, 
 focusing on strategy and skills without requiring deep mathematical knowledge, such as 
-tic-tac-toe or chess <sup>[[1](https://en.wikipedia.org/wiki/Mathematics)]</sup>. In contrast, mathematics competitions, like 
+tic-tac-toe or chess [^1]. In contrast, mathematics competitions, like 
 the International Mathematical Olympiad, involve participants solving complex 
 mathematical  problems, often requiring proof or detailed solutions 
-<sup>[[2](https://en.wikipedia.org/wiki/Mathematical_game)]</sup>. Essentially, games are for enjoyment and skill development, 
+[^2]. Essentially, games are for enjoyment and skill development, 
 while competitions test and challenge mathematical understanding and problem-solving 
 abilities..
 
-- **1** [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
-- **2** [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
+[^1]: [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
+[^2]: [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
 ```
 ---
 Mathematical games are structured activities defined by clear mathematical parameters, 
@@ -295,8 +296,8 @@ mathematical  problems, often requiring proof or detailed solutions
 while competitions test and challenge mathematical understanding and problem-solving 
 abilities..
 
-- **1** [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
-- **2** [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
+1. [Mathematics](https://en.wikipedia.org/wiki/Mathematics)
+2. [Mathematical game](https://en.wikipedia.org/wiki/Mathematical_game)
 ---
 
 The `manage_references()` take a `Runnable[LanguageModelInput, LanguageModelOutput]` as 

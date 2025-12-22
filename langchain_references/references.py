@@ -6,6 +6,7 @@ Tools to manage reference in a stream of tokens.
 - Use strict order
 - Add all references at the end of the stream
 """
+
 import logging
 import re
 from abc import abstractmethod
@@ -36,14 +37,16 @@ from langchain_core.runnables import (
 
 logger = logging.getLogger(__name__)
 
-_PREFIX = "[<["  # Uses an unusual pattern
-_SUFFIX = "]>]"
+# Use template similaire to OpenAI
+_PREFIX = "【"  # Uses an unusual pattern
+_SUFFIX = "†source】"
+ALL_FORMAT_SUFFIX = "【†source】"
 
 FORMAT_REFERENCES = (
     f"When referencing the documents, add a citation right after. "
-    f'Use "{_PREFIX}NUMBER{_SUFFIX}(id=ID_NUMBER)" for the citation '
+    f'Use "{_PREFIX}ID_NUMBER{_SUFFIX}" for the citation '
     f'(e.g. "The Space Needle is in Seattle '
-    f'{_PREFIX}1{_SUFFIX}(id=55){_PREFIX}2{_SUFFIX}(id=12).").'
+    f'{_PREFIX}1{_SUFFIX}{_PREFIX}2{_SUFFIX}.").'
 )
 
 # After this size, without reference, cancel the windows and wait a new '['
@@ -51,12 +54,8 @@ _MAX_WINDOWS_SIZE = 20
 
 # Some LLM return a reference like [NUMBER](id=3)
 # The number is not important, because we regenerate a new reference
-_ids_pattern = re.compile(
-    rf" *({re.escape(_PREFIX)}(?:\d+|NUMBER){re.escape(_SUFFIX)}\(id=\d*\))"
-)
-_id_pattern = re.compile(
-    rf"{re.escape(_PREFIX)}(?:\d+|NUMBER){re.escape(_SUFFIX)}\(id=(\d*)\)"
-)
+_ids_pattern = re.compile(rf" *({re.escape(_PREFIX)}(\d+|NUMBER){re.escape(_SUFFIX)})")
+_id_pattern = re.compile(rf"{re.escape(_PREFIX)}(\d+|NUMBER){re.escape(_SUFFIX)}")
 
 
 # %% Different styles of references
@@ -144,9 +143,30 @@ class MarkdownReferenceStyle(ReferenceStyle):
     and add a list of references at the end.
     """
 
+    FOOT_NOTE: Dict[str, str] = {
+        "REF": "[^{ref}]",
+        "TITLE_NOTE": "[^{ref}]: [{title}]({source})\n",
+        "NOTE": "[^{ref}]: {source}\n",
+    }
+    NO_FOOT_NOTE: Dict[str, str] = {
+        "REF": '<a href="#fn{ref}" id="{ref}">[{ref}]</a></sup>',
+        "TITLE_NOTE": '<sup id="fn{ref}" style="font-size: 0.7em;">{ref}.</a> '
+        "[{title}]({source})</sup></small>  \n",
+        "NOTE": '<sup id="fn{ref}" style="font-size: 0.7em;">{ref}.</a> '
+        "{source}</sup>  \n",
+    }
+
+    def __init__(self, foot_note_compatibe: bool = True):
+        if foot_note_compatibe:
+            self._compatible = MarkdownReferenceStyle.FOOT_NOTE
+        else:
+            self._compatible = MarkdownReferenceStyle.NO_FOOT_NOTE
+
+    # _TEMPLATE_NOTE="[^{ref}]: {source}\n"
     def format_reference(self, ref: int, media: BaseMedia) -> str:
         source = self._get_key_assigner(self.source_id_key)(media)
-        return f"<sup>[[{ref}]({source})]</sup>"
+        # return f"<sup>[[{ref}]({source})]</sup>"
+        return self._compatible["REF"].format(ref=ref, source=source)
 
     def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
         if not refs:
@@ -156,9 +176,13 @@ class MarkdownReferenceStyle(ReferenceStyle):
         for ref, media in refs:
             source = get_source(media)
             if media.metadata.get("title", ""):
-                result.append(f"- **{ref}** [{media.metadata['title']}]({source})\n")
+                result.append(
+                    self._compatible["TITLE_NOTE"].format(
+                        ref=ref, title=media.metadata["title"], source=source
+                    )
+                )
             else:
-                result.append(f"- **{ref}** <{source}>\n")
+                result.append(self._compatible["NOTE"].format(ref=ref, source=source))
         if not result:
             return ""
         return "\n\n" + "".join(result)
@@ -237,6 +261,8 @@ def _patch_id(
             llm_reference = content[m.start() : m.end()]
             matched = _id_pattern.search(llm_reference)
             assert matched, "a previous test must ensure that the pattern is correct"
+            if matched[1] == "NUMBER":
+                continue  # Ignore reference
             llm_index = int(matched[1]) - 1  # llm doc position
             if (llm_index < 0) or (llm_index >= len(medium)):
                 logger.warning(f"LLM return an invalid document reference {llm_index}.")
@@ -416,7 +442,7 @@ def manage_references(
     runnable: Runnable[LanguageModelInput, LanguageModelOutput],
     *,
     documents_key: str = "documents",
-    style: ReferenceStyle = MarkdownReferenceStyle(),
+    style: ReferenceStyle = MarkdownReferenceStyle(foot_note_compatibe=False),
 ) -> Runnable[LanguageModelInput, LanguageModelOutput]:
     return (
         RunnablePassthrough.assign(medium=lambda x: x[documents_key])
