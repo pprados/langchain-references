@@ -1535,7 +1535,6 @@ wheels = [
 
 [[package]]
 name = "langchain-references"
-version = "0.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "langchain-core" },
