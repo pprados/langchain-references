@@ -11,9 +11,9 @@ authors = [
 ]
 license = { text = "Apache-2.0" }
 readme = "README.md"
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 dependencies = [
-    "langchain-core>=0.2.29",
+    "langchain-core>=1.0.0",
 ]
 
 [project.urls]
@@ -103,8 +103,7 @@ exclude = []
 #                       section of the configuration file raise errors.
 #
 # https://github.com/tophat/syrupy
-# --snapshot-warn-unused    Prints a warning on unused snapshots rather than fail the test suite.
-addopts = "--strict-markers --strict-config --durations=5 --snapshot-warn-unused -vv"
+addopts = "--strict-markers --strict-config --durations=5 -vv"
 # Registering custom markers.
 # https://docs.pytest.org/en/7.1.x/example/markers.html#registering-markers
 markers = [

@@ -27,19 +27,19 @@ lint format: PYTHON_FILES=.
 lint_diff format_diff: PYTHON_FILES=$(shell git diff --relative=libs/experimental --name-only --diff-filter=d master | grep -E '\.py$$|\.ipynb$$')
 
 lint lint_diff:
-	uv run mypy $(PYTHON_FILES)
-	uv run black $(PYTHON_FILES) --check
-	uv run ruff check .
+	uvx mypy $(PYTHON_FILES)
+	uvx black $(PYTHON_FILES) --check
+	uvx ruff check .
 
 format format_diff:
-	uv run black $(PYTHON_FILES)
-	uv run ruff check --select I --fix $(PYTHON_FILES)
+	uvx black $(PYTHON_FILES)
+	uvx ruff check --select I --fix $(PYTHON_FILES)
 
 spell_check:
-	uv run codespell --toml pyproject.toml
+	uvx codespell --toml pyproject.toml
 
 spell_fix:
-	uv run codespell --toml pyproject.toml -w
+	uvx codespell --toml pyproject.toml -w
 
 
 ######################

@@ -7,6 +7,8 @@ Tools to manage reference in a stream of tokens.
 - Add all references at the end of the stream
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from abc import abstractmethod
@@ -14,14 +16,9 @@ from typing import (
     Any,
     AsyncIterable,
     Callable,
-    Dict,
     Generator,
     Iterable,
-    List,
-    Optional,
     Sequence,
-    Tuple,
-    Union,
     cast,
 )
 
@@ -60,16 +57,16 @@ _id_pattern = re.compile(rf"{re.escape(_PREFIX)}(\d+|NUMBER){re.escape(_SUFFIX)}
 
 # %% Different styles of references
 class ReferenceStyle:
-    source_id_key: Union[str, Callable[[BaseMedia], str]] = "source"
+    source_id_key: str | Callable[[BaseMedia], str] = "source"
     """The metadata to identify the id of the parents """
-    total_pages_key: Union[str, Callable[[BaseMedia], str]] = "total_pages"
+    total_pages_key: str | Callable[[BaseMedia], str] = "total_pages"
     """The key with the total number of pages in the document"""
     max_total_pages: int = 4
     """The maximum number of pages to reference a document"""
 
     @staticmethod
     def _get_key_assigner(
-        source_id_key: Union[str, Callable[[BaseMedia], Any]],
+        source_id_key: str | Callable[[BaseMedia], Any],
     ) -> Callable[[BaseMedia], Any]:
         """Get the source id from the document."""
         if isinstance(source_id_key, str):
@@ -85,7 +82,7 @@ class ReferenceStyle:
             )
 
     @abstractmethod
-    def format_reference(self, ref: int, media: BaseMedia) -> Optional[str]:
+    def format_reference(self, ref: int, media: BaseMedia) -> str | None:
         """Format a reference in the text.
         :param ref: the reference number
         :param media: the document
@@ -94,7 +91,7 @@ class ReferenceStyle:
         ...
 
     @abstractmethod
-    def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
+    def format_all_references(self, refs: list[tuple[int, BaseMedia]]) -> str:
         """Format all references at the end of the text.
         :param refs: the list of references
         :return: the formatted list of references"""
@@ -106,10 +103,10 @@ class EmptyReferenceStyle(ReferenceStyle):
     Remove all references.
     """
 
-    def format_reference(self, ref: int, media: BaseMedia) -> Optional[str]:
+    def format_reference(self, ref: int, media: BaseMedia) -> str | None:
         return ""
 
-    def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
+    def format_all_references(self, refs: list[tuple[int, BaseMedia]]) -> str:
         return ""
 
 
@@ -118,10 +115,10 @@ class TextReferenceStyle(ReferenceStyle):
     Remove all references.
     """
 
-    def format_reference(self, ref: int, media: BaseMedia) -> Optional[str]:
+    def format_reference(self, ref: int, media: BaseMedia) -> str | None:
         return f"[{ref}]"
 
-    def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
+    def format_all_references(self, refs: list[tuple[int, BaseMedia]]) -> str:
         if not refs:
             return ""
         get_source = self._get_key_assigner(self.source_id_key)
@@ -143,12 +140,12 @@ class MarkdownReferenceStyle(ReferenceStyle):
     and add a list of references at the end.
     """
 
-    FOOT_NOTE: Dict[str, str] = {
+    FOOT_NOTE: dict[str, str] = {
         "REF": "[^{ref}]",
         "TITLE_NOTE": "[^{ref}]: [{title}]({source})\n",
         "NOTE": "[^{ref}]: {source}\n",
     }
-    NO_FOOT_NOTE: Dict[str, str] = {
+    NO_FOOT_NOTE: dict[str, str] = {
         "REF": '<a href="#fn{ref}" id="{ref}">[{ref}]</a></sup>',
         "TITLE_NOTE": '<sup id="fn{ref}" style="font-size: 0.7em;">{ref}.</a> '
         "[{title}]({source})</sup></small>  \n",
@@ -168,7 +165,7 @@ class MarkdownReferenceStyle(ReferenceStyle):
         # return f"<sup>[[{ref}]({source})]</sup>"
         return self._compatible["REF"].format(ref=ref, source=source)
 
-    def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
+    def format_all_references(self, refs: list[tuple[int, BaseMedia]]) -> str:
         if not refs:
             return ""
         get_source = self._get_key_assigner(self.source_id_key)
@@ -198,7 +195,7 @@ class HTMLReferenceStyle(ReferenceStyle):
         source = self._get_key_assigner(self.source_id_key)(media)
         return f'<sup><a href="{source}">{ref}</a></sup>'
 
-    def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
+    def format_all_references(self, refs: list[tuple[int, BaseMedia]]) -> str:
         get_source = self._get_key_assigner(self.source_id_key)
         if not refs:
             return ""
@@ -220,11 +217,11 @@ class HTMLReferenceStyle(ReferenceStyle):
 def _analyse_doc_ids(
     style: ReferenceStyle,
     mediums: Sequence[BaseMedia],
-) -> Dict[int, int]:
+) -> dict[int, int]:
     # For each doc, find the id of referenced document
     source_id_key_get = ReferenceStyle._get_key_assigner(style.source_id_key)
-    seen: Dict = dict[str, int]()
-    uniq_id_for_chunk = dict[int, int]()
+    seen: dict[str, int] = {}
+    uniq_id_for_chunk: dict[int, int] = {}
     gen_id = 1
     for id, media in enumerate(mediums):
         key = source_id_key_get(media)
@@ -241,14 +238,14 @@ def _analyse_doc_ids(
 def _patch_id(
     style: ReferenceStyle,
     medium: Sequence[BaseMedia],
-) -> Generator[Tuple[str, int] | Dict[int, BaseMedia] | None, str | None, None]:
+) -> Generator[tuple[str, int] | dict[int, BaseMedia] | None, str | None, None]:
     # Calculate a uniq id for each chunk
     # in order to allow the injection of a single reference, in order.
     uniq_id_for_chunk = _analyse_doc_ids(style, medium)
-    ids: Dict[int, BaseMedia] = {}
+    ids: dict[int, BaseMedia] = {}
     last_ref = 0
-    new_reference_number = dict[int, int]()
-    formated_result: Tuple[str, int] = ("", 0)
+    new_reference_number: dict[int, int] = {}
+    formated_result: tuple[str, int] = ("", 0)
     while True:
         last = 0
         result = ""
@@ -369,7 +366,7 @@ def _manage_references(
                             result = None
             if matched:
                 windows_patched, last = cast(
-                    Tuple[str, int], patch_id.send(windows_str)
+                    tuple[str, int], patch_id.send(windows_str)
                 )
                 windows_str = windows_str[last:]
                 wait = _PREFIX not in windows_str
@@ -377,21 +374,21 @@ def _manage_references(
             matched = None
             if message is None:
                 break
-        ids = cast(Dict[int, BaseMedia], patch_id.send(None))
+        ids = cast(dict[int, BaseMedia], patch_id.send(None))
         yield AIMessageChunk(
             content=windows_str
             + style.format_all_references(
-                cast(List[Tuple[int, BaseMedia]], ids.items())
+                cast(list[tuple[int, BaseMedia]], ids.items())
             )
         )
 
 
 # %% Lambdas for langchain
 def _update_references(
-    inputs: Iterable[Dict[str, Any]],
+    inputs: Iterable[dict[str, Any]],
     runnable: Runnable,
     style: ReferenceStyle,
-    config: Optional[RunnableConfig] = None,
+    config: RunnableConfig | None = None,
 ) -> Iterable[BaseMessage | None]:
     for input in inputs:
         if "input" not in input:
@@ -418,10 +415,10 @@ def _update_references(
 
 
 async def _aupdate_references(
-    inputs: AsyncIterable[Dict[str, Any]],
+    inputs: AsyncIterable[dict[str, Any]],
     runnable: Runnable,
     style: ReferenceStyle,
-    config: Optional[RunnableConfig] = None,
+    config: RunnableConfig | None = None,
 ) -> AsyncIterable[BaseMessage | None]:
     async for input in inputs:
         if "input" not in input:
@@ -468,14 +465,14 @@ def manage_references(
 #         documents_key=documents_key, style=style)
 #
 #     def invoke(self, input: LanguageModelOutput,
-#                config: Optional[RunnableConfig] = None) -> Runnable[
+#                config: RunnableConfig | None = None) -> Runnable[
 #         LanguageModelInput, LanguageModelOutput]:
 #         return self._r.invoke(input, config=config)
 #
 #     def stream(
 #             self,
 #             input: LanguageModelInput,
-#             config: Optional[RunnableConfig] = None,
-#             **kwargs: Optional[Any],
+#             config: RunnableConfig | None = None,
+#             **kwargs: Any | None,
 #     ) -> Iterator[LanguageModelOutput]:
 #         return self._r.stream(input, config=config)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Generator, Iterator, List, Optional, Tuple, cast
+from typing import Any, Callable, Generator, Iterator, cast
 from unittest.mock import patch
 
 from langchain_core.documents import Document
@@ -29,15 +29,15 @@ from langchain_references.references import (
 
 
 class _TestRunnable(Runnable[LanguageModelInput, LanguageModelOutput]):
-    text_fragments: List[str]
+    text_fragments: list[str]
 
-    def __init__(self, text_fragments: List[str]) -> None:
+    def __init__(self, text_fragments: list[str]) -> None:
         self.text_fragments = text_fragments
 
     def invoke(
         self,
         input: LanguageModelInput,
-        config: Optional[RunnableConfig] = None,
+        config: RunnableConfig | None = None,
         **kwargs: Any,
     ) -> LanguageModelOutput:
         raise NotImplementedError()
@@ -45,16 +45,16 @@ class _TestRunnable(Runnable[LanguageModelInput, LanguageModelOutput]):
     def stream(
         self,
         input: LanguageModelInput,
-        config: Optional[RunnableConfig] = None,
-        **kwargs: Optional[Any],
+        config: RunnableConfig | None = None,
+        **kwargs: Any | None,
     ) -> Iterator[LanguageModelOutput]:
         for text_fragment in self.text_fragments:
             yield text_fragment
 
 
 def collect_fragments(
-    text_fragments: List[str],
-    documents: List[Document],
+    text_fragments: list[str],
+    documents: list[Document],
     style: ReferenceStyle = MarkdownReferenceStyle(),
 ) -> str:
     return "".join(
@@ -104,7 +104,7 @@ class TestReferenceStyle(MarkdownReferenceStyle):
     def format_reference(self, ref: int, media: BaseMedia) -> str:
         return f"[{ref}]({media.metadata['source']})"
 
-    def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
+    def format_all_references(self, refs: list[tuple[int, BaseMedia]]) -> str:
         result = ["\n"]
         for ref, media in refs:
             result.append(
@@ -126,8 +126,8 @@ def _send(
     else:
         result = references.send(None)
     if result:
-        return cast(Optional[str], result.content)
-    return cast(Optional[str], result)
+        return cast(str | None, result.content)
+    return cast(str | None, result)
 
 
 def test_single_token() -> None:
@@ -297,7 +297,7 @@ def test_NUMBER() -> None:
 
 
 def test_style_empty() -> None:
-    documents: List[BaseMedia] = [
+    documents: list[BaseMedia] = [
         Document(
             page_content="doc1",
             id="1",
@@ -343,7 +343,7 @@ def test_style_empty() -> None:
 
 
 def test_style_text() -> None:
-    documents: List[BaseMedia] = [
+    documents: list[BaseMedia] = [
         Document(
             page_content="doc1",
             id="1",
@@ -391,7 +391,7 @@ def test_style_text() -> None:
 
 
 def test_style_markdown_compatible() -> None:
-    documents: List[BaseMedia] = [
+    documents: list[BaseMedia] = [
         Document(
             page_content="doc1",
             id="1",
@@ -441,7 +441,7 @@ def test_style_markdown_compatible() -> None:
 
 
 def test_style_markdown_not_compatible() -> None:
-    documents: List[BaseMedia] = [
+    documents: list[BaseMedia] = [
         Document(
             page_content="doc1",
             id="1",
@@ -507,7 +507,7 @@ def test_style_markdown_not_compatible() -> None:
 
 
 def test_style_html() -> None:
-    documents: List[BaseMedia] = [
+    documents: list[BaseMedia] = [
         Document(
             page_content="doc1",
             id="1",
@@ -574,14 +574,14 @@ def test_my_style() -> None:
     class MyReferenceStyle(ReferenceStyle):
         source_id_key: Callable[[BaseMedia], str] = my_source
 
-        def format_reference(self, ref: int, media: BaseMedia) -> Optional[str]:
+        def format_reference(self, ref: int, media: BaseMedia) -> str | None:
             get_total_pages = self._get_key_assigner(self.total_pages_key)
             total_pages = get_total_pages(media)
             if total_pages and total_pages > self.max_total_pages:
                 return None
             return f"[{media.metadata['title']}]"
 
-        def format_all_references(self, refs: List[Tuple[int, BaseMedia]]) -> str:
+        def format_all_references(self, refs: list[tuple[int, BaseMedia]]) -> str:
             if not refs:
                 return ""
             result = []
@@ -592,7 +592,7 @@ def test_my_style() -> None:
                 return ""
             return "\n\n" + "".join(result)
 
-    documents: List[BaseMedia] = [
+    documents: list[BaseMedia] = [
         Document(
             page_content="doc1",
             id="1",
