@@ -1,5 +1,6 @@
 Langchain-Reference
 ===================
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/pprados/langchain-references)
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/pprados/langchain-references?quickstart=1)
 
