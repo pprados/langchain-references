@@ -283,17 +283,6 @@ class MyReferenceStyle(ReferenceStyle):
 chain = context | manage_references(rag_prompt | model, style=MyReferenceStyle()) | StrOutputParser()
 ```
 
-<<<<<<< HEAD
-## How does it work?
-On the fly, each token is captured to identify the pattern of references. As soon as 
-the beginning of a text seems to match, tokens are accumulated until references are 
-identified or the capture is abandoned, as this is a false detection. The accumulated 
-tokens are then produced, before the analysis is resumed.
-As soon as a token appears, it is assigned an identifier, in relation to the various 
-documents present. Then `format_reference()` is invoked. 
-When there are no more tokens, the list of documents used for the response is 
-constructed and added as the final fragment, via `format_all_references()`.
-=======
 ## How it works
 
 `manage_references()` intercepts each token from the LLM stream. When a token
@@ -305,4 +294,3 @@ from its metadata, reference numbers are renumbered to eliminate duplicates, and
 
 Once the stream ends, `format_all_references()` appends the consolidated reference
 list as the final output chunk.
->>>>>>> 1000732 (Improve README clarity and fix several issues)
